@@ -1110,6 +1110,7 @@ UI.LongClickController = class extends Common.Object {
  * @param {!Common.Setting} themeSetting
  */
 UI.initializeUIUtils = function(document, themeSetting) {
+  document.body.classList.toggle('inactive', !document.hasFocus());
   document.defaultView.addEventListener('focus', UI._windowFocused.bind(UI, document), false);
   document.defaultView.addEventListener('blur', UI._windowBlurred.bind(UI, document), false);
   document.addEventListener('focus', UI._focusChanged.bind(UI), true);
@@ -2012,4 +2013,18 @@ UI.ConfirmDialog = class extends UI.VBox {
     buttonsBar.appendChild(UI.createTextButton(Common.UIString('Ok'), okCallback));
     buttonsBar.appendChild(UI.createTextButton(Common.UIString('Cancel'), cancelCallback));
   }
+};
+
+/**
+ * @param {!UI.ToolbarToggle} toolbarButton
+ * @return {!Element}
+ */
+UI.createInlineButton = function(toolbarButton) {
+  var element = createElement('span');
+  var shadowRoot = UI.createShadowRootWithCoreStyles(element, 'ui/inlineButton.css');
+  element.classList.add('inline-button');
+  var toolbar = new UI.Toolbar('');
+  toolbar.appendToolbarItem(toolbarButton);
+  shadowRoot.appendChild(toolbar.element);
+  return element;
 };
