@@ -111,7 +111,6 @@ class TypeMap:
         self.map_ = {}
         for json_domain in api["domains"]:
             domain_name = json_domain["domain"]
-
             domain_map = {}
             self.map_[domain_name] = domain_map
 

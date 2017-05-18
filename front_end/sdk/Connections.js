@@ -165,7 +165,20 @@ SDK.WebSocketConnection = class {
    * @param {string} message
    */
   sendMessage(message) {
-    if (this._connected)
+
+    // message is a string.
+    const objectMessage = JSON.parse(message);
+    const splited = (objectMessage.method || '.').split('.');
+    const domain = splited[0];
+    const method = splited[1];
+
+    // if the message is from tiny, we use window.sendToHost.
+    if (domain && domain === 'Tiny') {
+      window.sendToHost('render', {
+        method,
+        payload: message,
+      });
+    } else if (this._connected)
       this._socket.send(message);
     else
       this._messages.push(message);

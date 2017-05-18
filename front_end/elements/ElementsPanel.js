@@ -34,8 +34,8 @@
  * @unrestricted
  */
 Elements.ElementsPanel = class extends UI.Panel {
-  constructor() {
-    super('elements');
+  constructor(name) {
+    super(name || 'elements');
     this.registerRequiredCSS('elements/elementsPanel.css');
 
     this._splitWidget = new UI.SplitWidget(true, true, 'elementsPanelSplitViewState', 325, 325);
@@ -81,15 +81,19 @@ Elements.ElementsPanel = class extends UI.Panel {
     this._treeOutlines = [];
     /** @type {!Map<!Elements.ElementsTreeOutline, !Element>} */
     this._treeOutlineHeaders = new Map();
-    SDK.targetManager.observeModels(SDK.DOMModel, this);
-    SDK.targetManager.addEventListener(
-        SDK.TargetManager.Events.NameChanged,
-        event => this._targetNameChanged(/** @type {!SDK.Target} */ (event.data)));
     Common.moduleSetting('showUAShadowDOM').addChangeListener(this._showUAShadowDOMChanged.bind(this));
-    SDK.targetManager.addModelListener(
+
+    // ANT-IDE: we realy do not need these things........
+    if (!name) {
+      SDK.targetManager.observeModels(SDK.DOMModel, this);
+      SDK.targetManager.addEventListener(
+        SDK.TargetManager.Events.NameChanged,
+        event => this._targetNameChanged(/** @type {!SDK.Target} */(event.data)));
+      SDK.targetManager.addModelListener(
         SDK.DOMModel, SDK.DOMModel.Events.DocumentUpdated, this._documentUpdatedEvent, this);
-    Extensions.extensionServer.addEventListener(
+      Extensions.extensionServer.addEventListener(
         Extensions.ExtensionServer.Events.SidebarPaneAdded, this._extensionSidebarPaneAdded, this);
+    } 
   }
 
   /**
@@ -111,7 +115,7 @@ Elements.ElementsPanel = class extends UI.Panel {
   /**
    * @return {!Element}
    */
-  _createStylesSidebarToolbar() {
+  _createStylesSidebarToolbar() { 
     var container = createElementWithClass('div', 'styles-sidebar-pane-toolbar-container');
     var hbox = container.createChild('div', 'hbox styles-sidebar-pane-toolbar');
     var filterContainerElement = hbox.createChild('div', 'styles-sidebar-pane-filter-box');

@@ -68,7 +68,7 @@ function generateProtocolTask() {
 gulp.task('concatenateProtocol', ['fetchProtocol'], concatenateProtocolTask);
 function concatenateProtocolTask() {
   var protocols = [
-    path.join(releasePath, 'browser_protocol.json'),
+    path.join(releasePath, 'browser_protocol.json'), //need some more hack job
     path.join(releasePath, 'js_protocol.json'),
   ];
   var output = path.join(releasePath, 'protocol.json');

@@ -5,7 +5,7 @@
             "location": "panel",
             "id": "sources",
             "title": "Sources",
-            "order": 30,
+            "order": 50,
             "className": "Sources.SourcesPanel"
         },
         {

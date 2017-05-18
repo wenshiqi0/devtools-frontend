@@ -641,6 +641,12 @@ UI.ViewManager._TabbedLocation = class extends UI.ViewManager._Location {
       views.sort((a, b) => orders.get(a.viewId()) - orders.get(b.viewId()));
     }
 
+    // ANT-IDE: Filter those views that we don't need.
+    var noNeedView = ['elements', 'audits', 'security', 'release-note', 'heap_profiler', 'js_profiler', 'resources', 'timeline'];
+    views = views.filter(view =>
+      !(noNeedView.indexOf(view.viewId()) > -1)
+    );
+
     for (var view of views) {
       var id = view.viewId();
       this._views.set(id, view);

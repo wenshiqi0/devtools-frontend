@@ -3,30 +3,31 @@
 // found in the LICENSE file.
 
 var fs = require('fs');
-var http = require('http');
-var https = require('https');
 var path = require('path');
 var parseURL = require('url').parse;
 var shell = require('child_process').execSync;
 var Stream = require('stream').Transform;
+var request = require('request');
+
+// ANT-IDE: 使用 request 替换了 http ，添加了一个 http 代理。
 
 function fetch(url) {
-  return new Promise(fetchPromise);
 
-  function fetchPromise(resolve, reject) {
-    var request;
-    var protocol = parseURL(url).protocol;
+  return new Promise((resolve, reject) => {
     var handleResponse = getCallback.bind(null, resolve, reject);
-    if (protocol === 'https:') {
-      request = https.get(url, handleResponse);
-    } else if (protocol === 'http:') {
-      request = http.get(url, handleResponse);
-    } else {
-      reject(new Error(`Invalid protocol for url: ${url}`));
-      return;
-    }
-    request.on('error', err => reject(err));
-  }
+    request
+      .get({
+        url,
+        headers: {
+          'User-Agent': 'request',
+        },
+        proxy: 'http://127.0.0.1:1087',
+      })
+      .on('response', handleResponse)
+      .on('error', (error) => {
+        reject(new Error(`Error: ${error}`));
+      })
+  });
 
   function getCallback(resolve, reject, response) {
     if (response.statusCode !== 200) {

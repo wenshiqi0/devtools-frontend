@@ -8,6 +8,8 @@ var jsonfile = require('jsonfile');
 
 var utils = require('../utils');
 
+var tinyJson = require('./tiny.json');
+
 module.exports = function main(protocols, output) {
   var domains = [];
   var version;
@@ -19,6 +21,10 @@ module.exports = function main(protocols, output) {
     domains = domains.concat(json.domains);
     version = json.version;
   }
+
+  // TODO: this is so hack, fix it later.
+  domains = domains.concat(tinyJson);
+
   var combinedProtocol = {version, domains};
   jsonfile.writeFileSync(output, combinedProtocol, {spaces: 4});
 };

@@ -134,10 +134,9 @@
         },
         {
             "type": "view",
-            "location": "drawer-view",
+            "location": "panel",
             "id": "sensors",
             "title": "Sensors",
-            "persistence": "closeable",
             "order": 100,
             "className": "Emulation.SensorsView",
             "tags": "geolocation, accelerometer, device orientation"

@@ -24,7 +24,7 @@
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * (INCLUDING NEGLIGENCE OR OTHERWISE)  ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -339,6 +339,10 @@ Protocol.TargetBase = class {
         return;
       }
 
+      if (messageObject.result && messageObject.result.root) {
+        console.log(messageObject);
+      }
+
       var timingLabel = 'time-stats: ' + callback.methodName;
       if (Protocol.InspectorBackend.Options.dumpInspectorTimeStats)
         console.time(timingLabel);
@@ -357,6 +361,8 @@ Protocol.TargetBase = class {
         Protocol.InspectorBackend.reportProtocolError('Protocol Error: the message without method', messageObject);
         return;
       }
+
+      // console.log(messageObject);
 
       var method = messageObject.method.split('.');
       var domainName = method[0];

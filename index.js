@@ -15,6 +15,5 @@ app
     }
     yield next;
   }))
-  .use(staticMiddlware('../../release'))
-  .use(staticMiddlware('../../extensions'))
+  .use(staticMiddlware('./release'))
   .listen(serverPort);

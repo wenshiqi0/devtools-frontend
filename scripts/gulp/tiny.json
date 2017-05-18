@@ -1,0 +1,429 @@
+{
+  "domain": "Tiny",
+  "description": "This domain provides various functionality related to drawing atop the inspected page.",
+  "dependencies": [
+    "DOM",
+    "Runtime"
+  ],
+  "experimental": true,
+  "types": [
+    {
+      "id": "NodeId",
+      "type": "integer",
+      "description": "Unique DOM node identifier."
+    },
+    {
+      "id": "BackendNodeId",
+      "type": "integer",
+      "description": "Unique DOM node identifier used to reference a node that may not have been pushed to the front-end.",
+      "experimental": true
+    },
+    {
+      "id": "BackendNode",
+      "type": "object",
+      "properties": [
+        {
+          "name": "nodeType",
+          "type": "integer",
+          "description": "<code>Node</code>'s nodeType."
+        },
+        {
+          "name": "nodeName",
+          "type": "string",
+          "description": "<code>Node</code>'s nodeName."
+        },
+        {
+          "name": "backendNodeId",
+          "$ref": "BackendNodeId"
+        }
+      ],
+      "experimental": true,
+      "description": "Backend node with a friendly name."
+    },
+    {
+      "id": "PseudoType",
+      "type": "string",
+      "enum": [
+        "first-line",
+        "first-letter",
+        "before",
+        "after",
+        "backdrop",
+        "selection",
+        "first-line-inherited",
+        "scrollbar",
+        "scrollbar-thumb",
+        "scrollbar-button",
+        "scrollbar-track",
+        "scrollbar-track-piece",
+        "scrollbar-corner",
+        "resizer",
+        "input-list-button"
+      ],
+      "description": "Pseudo element type."
+    },
+    {
+      "id": "ShadowRootType",
+      "type": "string",
+      "enum": [
+        "user-agent",
+        "open",
+        "closed"
+      ],
+      "description": "Shadow root type."
+    },
+    {
+      "id": "Node",
+      "type": "object",
+      "properties": [
+        {
+          "name": "nodeId",
+          "$ref": "NodeId",
+          "description": "Node identifier that is passed into the rest of the DOM messages as the <code>nodeId</code>. Backend will only push node with given <code>id</code> once. It is aware of all requested nodes and will only fire DOM events for nodes known to the client."
+        },
+        {
+          "name": "parentId",
+          "$ref": "NodeId",
+          "optional": true,
+          "description": "The id of the parent node if any.",
+          "experimental": true
+        },
+        {
+          "name": "backendNodeId",
+          "$ref": "BackendNodeId",
+          "description": "The BackendNodeId for this node.",
+          "experimental": true
+        },
+        {
+          "name": "nodeType",
+          "type": "integer",
+          "description": "<code>Node</code>'s nodeType."
+        },
+        {
+          "name": "nodeName",
+          "type": "string",
+          "description": "<code>Node</code>'s nodeName."
+        },
+        {
+          "name": "localName",
+          "type": "string",
+          "description": "<code>Node</code>'s localName."
+        },
+        {
+          "name": "nodeValue",
+          "type": "string",
+          "description": "<code>Node</code>'s nodeValue."
+        },
+        {
+          "name": "childNodeCount",
+          "type": "integer",
+          "optional": true,
+          "description": "Child count for <code>Container</code> nodes."
+        },
+        {
+          "name": "children",
+          "type": "array",
+          "optional": true,
+          "items": {
+            "$ref": "Node"
+          },
+          "description": "Child nodes of this node when requested with children."
+        },
+        {
+          "name": "attributes",
+          "type": "array",
+          "optional": true,
+          "items": {
+            "type": "string"
+          },
+          "description": "Attributes of the <code>Element</code> node in the form of flat array <code>[name1, value1, name2, value2]</code>."
+        },
+        {
+          "name": "documentURL",
+          "type": "string",
+          "optional": true,
+          "description": "Document URL that <code>Document</code> or <code>FrameOwner</code> node points to."
+        },
+        {
+          "name": "baseURL",
+          "type": "string",
+          "optional": true,
+          "description": "Base URL that <code>Document</code> or <code>FrameOwner</code> node uses for URL completion.",
+          "experimental": true
+        },
+        {
+          "name": "publicId",
+          "type": "string",
+          "optional": true,
+          "description": "<code>DocumentType</code>'s publicId."
+        },
+        {
+          "name": "systemId",
+          "type": "string",
+          "optional": true,
+          "description": "<code>DocumentType</code>'s systemId."
+        },
+        {
+          "name": "internalSubset",
+          "type": "string",
+          "optional": true,
+          "description": "<code>DocumentType</code>'s internalSubset."
+        },
+        {
+          "name": "xmlVersion",
+          "type": "string",
+          "optional": true,
+          "description": "<code>Document</code>'s XML version in case of XML documents."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "optional": true,
+          "description": "<code>Attr</code>'s name."
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "optional": true,
+          "description": "<code>Attr</code>'s value."
+        },
+        {
+          "name": "pseudoType",
+          "$ref": "PseudoType",
+          "optional": true,
+          "description": "Pseudo element type for this node."
+        },
+        {
+          "name": "shadowRootType",
+          "$ref": "ShadowRootType",
+          "optional": true,
+          "description": "Shadow root type."
+        },
+        {
+          "name": "frameId",
+          "$ref": "Page.FrameId",
+          "optional": true,
+          "description": "Frame ID for frame owner elements.",
+          "experimental": true
+        },
+        {
+          "name": "contentDocument",
+          "$ref": "Node",
+          "optional": true,
+          "description": "Content document for frame owner elements."
+        },
+        {
+          "name": "shadowRoots",
+          "type": "array",
+          "optional": true,
+          "items": {
+            "$ref": "Node"
+          },
+          "description": "Shadow root list for given element host.",
+          "experimental": true
+        },
+        {
+          "name": "templateContent",
+          "$ref": "Node",
+          "optional": true,
+          "description": "Content document fragment for template elements.",
+          "experimental": true
+        },
+        {
+          "name": "pseudoElements",
+          "type": "array",
+          "items": {
+            "$ref": "Node"
+          },
+          "optional": true,
+          "description": "Pseudo elements associated with this node.",
+          "experimental": true
+        },
+        {
+          "name": "importedDocument",
+          "$ref": "Node",
+          "optional": true,
+          "description": "Import document for the HTMLImport links."
+        },
+        {
+          "name": "distributedNodes",
+          "type": "array",
+          "items": {
+            "$ref": "BackendNode"
+          },
+          "optional": true,
+          "description": "Distributed nodes for given insertion point.",
+          "experimental": true
+        },
+        {
+          "name": "isSVG",
+          "type": "boolean",
+          "optional": true,
+          "description": "Whether the node is SVG.",
+          "experimental": true
+        }
+      ],
+      "description": "DOM interaction is implemented in terms of mirror objects that represent the actual DOM nodes. DOMNode is a base node mirror type."
+    },
+    {
+      "id": "RGBA",
+      "type": "object",
+      "properties": [
+        {
+          "name": "r",
+          "type": "integer",
+          "description": "The red component, in the [0-255] range."
+        },
+        {
+          "name": "g",
+          "type": "integer",
+          "description": "The green component, in the [0-255] range."
+        },
+        {
+          "name": "b",
+          "type": "integer",
+          "description": "The blue component, in the [0-255] range."
+        },
+        {
+          "name": "a",
+          "type": "number",
+          "optional": true,
+          "description": "The alpha component, in the [0-1] range (default: 1)."
+        }
+      ],
+      "description": "A structure holding an RGBA color."
+    },
+    {
+      "id": "Quad",
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 8,
+      "maxItems": 8,
+      "description": "An array of quad vertices, x immediately followed by y for each point, points clock-wise.",
+      "experimental": true
+    },
+    {
+      "id": "BoxModel",
+      "type": "object",
+      "experimental": true,
+      "properties": [
+        {
+          "name": "content",
+          "$ref": "Quad",
+          "description": "Content box"
+        },
+        {
+          "name": "padding",
+          "$ref": "Quad",
+          "description": "Padding box"
+        },
+        {
+          "name": "border",
+          "$ref": "Quad",
+          "description": "Border box"
+        },
+        {
+          "name": "margin",
+          "$ref": "Quad",
+          "description": "Margin box"
+        },
+        {
+          "name": "width",
+          "type": "integer",
+          "description": "Node width"
+        },
+        {
+          "name": "height",
+          "type": "integer",
+          "description": "Node height"
+        },
+        {
+          "name": "shapeOutside",
+          "$ref": "ShapeOutsideInfo",
+          "optional": true,
+          "description": "Shape outside coordinates"
+        }
+      ],
+      "description": "Box model."
+    },
+    {
+      "id": "ShapeOutsideInfo",
+      "type": "object",
+      "experimental": true,
+      "properties": [
+        {
+          "name": "bounds",
+          "$ref": "Quad",
+          "description": "Shape bounds"
+        },
+        {
+          "name": "shape",
+          "type": "array",
+          "items": {
+            "type": "any"
+          },
+          "description": "Shape coordinate details"
+        },
+        {
+          "name": "marginShape",
+          "type": "array",
+          "items": {
+            "type": "any"
+          },
+          "description": "Margin shape bounds"
+        }
+      ],
+      "description": "CSS Shape Outside details."
+    },
+    {
+      "id": "Rect",
+      "type": "object",
+      "experimental": true,
+      "properties": [
+        {
+          "name": "x",
+          "type": "number",
+          "description": "X coordinate"
+        },
+        {
+          "name": "y",
+          "type": "number",
+          "description": "Y coordinate"
+        },
+        {
+          "name": "width",
+          "type": "number",
+          "description": "Rectangle width"
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "description": "Rectangle height"
+        }
+      ],
+      "description": "Rectangle."
+    }
+  ],
+  "commands": [
+    {
+      "name": "enable",
+      "description": "Enables DOM agent for the given page."
+    },
+    {
+      "name": "getDocument",
+      "description": "Disables DOM agent for the given page."
+    },
+    {
+      "name": "disable",
+      "description": "Disables DOM agent for the given page."
+    }
+  ],
+  "events": [
+    {
+      "name": "documentUpdated",
+      "description": "Fired when <code>Document</code> has been totally updated. Node ids are no longer valid."
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+    "extensions": [
+        {
+            "type": "view",
+            "location": "panel",
+            "id": "axml",
+            "title": "Axml",
+            "order": 10,
+            "className": "Ant.AxmlPanel",
+            "tags": "ant, tiny, ide"
+        },
+        {
+            "type": "view",
+            "location": "panel",
+            "id": "storage",
+            "title": "Storage",
+            "order": 20,
+            "className": "Ant.StoragePanel",
+            "tags": "ant, tiny, ide"
+        },
+        {
+            "type": "view",
+            "location": "panel",
+            "id": "data",
+            "title": "Data",
+            "order": 30,
+            "className": "Ant.DataPanel",
+            "tags": "ant, tiny, ide"
+        },
+        {
+            "type": "@Common.Revealer",
+            "contextTypes": [
+                "SDK.DOMNode",
+                "SDK.DeferredDOMNode",
+                "SDK.RemoteObject"
+            ],
+            "className": "Elements.ElementsPanel.DOMNodeRevealer"
+        },
+        {
+            "type": "@Common.Revealer",
+            "contextTypes": [
+                "SDK.CSSProperty"
+            ],
+            "className": "Ant.AxmlPanel.CSSPropertyRevealer"
+        }
+    ],
+    "dependencies": [
+        "elements",
+        "common",
+        "host",
+        "platform",
+        "protocol"
+    ],
+    "scripts": [
+        "AxmlPanel.js",
+        "TinyModel.js",
+        "TinyConnection.js",
+        "StoragePanel.js",
+        "DataPanel.js"
+    ],
+    "resources": [
+        "axmlPanel.css"
+    ]
+}
