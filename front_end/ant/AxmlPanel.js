@@ -23,7 +23,6 @@ Ant.AxmlPanel.CSSPropertyRevealer = class {
    * @return {!Promise}
    */
   reveal(property) {
-    console.log(property);
     var panel = Ant.AxmlPanel.instance();
     return panel._revealProperty(/** @type {!SDK.CSSProperty} */ (property));
   }

@@ -29,9 +29,6 @@ Ant.AcssModel = class extends SDK.CSSModel {
       if (!node)
         return null;
 
-      console.log(inlinePayload);
-      console.log(matchedPayload);
-
       return new SDK.CSSMatchedStyles(
         this, node, inlinePayload || null, attributesPayload || null, matchedPayload || [], pseudoPayload || [],
         inheritedPayload || [], animationsPayload || []);
@@ -45,8 +42,6 @@ Ant.AcssModel = class extends SDK.CSSModel {
         }
       });
       window.listenToHostOnce('render-styleOnce', (event, args) => {
-        console.error('==========');
-        console.log(args);
         const { inlineStyle, matchedStyle } = args.payload;
         resolve(callback(null, inlineStyle, null, matchedStyle));
       });
@@ -79,7 +74,6 @@ Ant.AcssModel = class extends SDK.CSSModel {
       });
       window.listenToHostOnce('render-inlineStyleOnce', (event, args) => {
         const { payload } = args;
-        console.log('nononono', payload);
         resolve(callback(null, payload));
       });
     });
