@@ -95,6 +95,8 @@ SDK.CSSMatchedStyles = class {
       parentNode = parentNode.parentNode;
     }
 
+    console.log('pseudo section');
+
     // Set up pseudo styles map.
     this._pseudoStyles = new Map();
     if (pseudoPayload) {
@@ -128,7 +130,7 @@ SDK.CSSMatchedStyles = class {
      */
     function addMatchingSelectors(node, rule, matchingSelectorIndices) {
       for (var matchingSelectorIndex of matchingSelectorIndices) {
-        var selector = rule.selectors[matchingSelectorIndex];
+        var selector = rule.selectors[parseInt(matchingSelectorIndex, 10)];
         this._setSelectorMatches(node, selector.text, true);
       }
     }

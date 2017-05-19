@@ -94,6 +94,88 @@ const sendMessage = ({ method, payload }) => {
   })
 }
 
+function getStyle(className_) {
+  const ret = [];
+  const styleSheets = window.document.styleSheets;
+  const styleSheetsLength = styleSheets.length;
+  for (let i = 0; i < styleSheetsLength; i++) {
+    const classes = styleSheets[i].rules || styleSheets[i].cssRules;
+    if (!classes)
+      continue;
+    const classesLength = classes.length;
+    for (var x = 0; x < classesLength; x++) {
+      if (classes[x].selectorText == className_) {
+        console.log(classes[x]);
+        let j = 0;
+        let styleKey;
+        while(styleKey = classes[x].style[j++]) {
+          const newProperty = {};
+          newProperty[styleKey] = classes[x].style[styleKey];
+          ret.push({
+            name: styleKey,
+            value: classes[x].style[styleKey],
+          });
+        }
+        return {
+          shorthandEntries: [],
+          cssProperties: ret,
+        };
+      }
+    }
+  }
+}
+
+function createMathedStyle(nodeId: String, element: Element) {
+  const payload = [];
+  const classList = element.classList;
+
+  for (let i = 0; i < classList.length; i++) {
+    const prop = getStyle(`.${classList[i]}`);
+    if (prop) {
+      payload.push({
+        matchingSelectors: [0],
+        rule: {
+          media: [],
+          origin: 'regular',
+          selectorList: {
+            text: `.${classList[i]}`,
+            selectors: [{ text: `.${classList[i]}` }]
+          },
+          style: prop,
+        }
+      });
+    } 
+  }
+
+  return payload;
+}
+
+function createInlineStyle(nodeId: String, realDom: Element) {
+  const style = realDom.style as CSSStyleDeclaration;
+  const cssProperties = [];
+  style.cssText.split(';').forEach(text => {
+    const splited = text.split(':');
+    const name = splited[0];
+    const value = splited[1];
+    if (value) {
+      cssProperties.push({
+        disabled: false,
+        implicit: false,
+        value: value.replace(/^\s/g, '').replace(/\s$/g, ''),
+        name: name.replace(/\s/g, ''),
+        text,
+      });
+    }
+  });
+
+  return {
+    cssText: style.cssText,
+    shorthandEntries: [],
+    cssProperties,
+    styleSheetId: nodeId * 10 + 1,
+  }
+}
+
 const messageHandler = {
   refresh: () => {
     sendMessage({
@@ -138,13 +220,59 @@ const messageHandler = {
       container = null;
     }
   },
-  style: () => {
+  inlineStyleOnce: ({ nodeId }) => {
+    const id = parseInt(nodeId);
+    const { element, node } = reactElementIds[id] || {};
+    if (element) {
+      const realReact = componentElementMapping.get(element);
+      const realDom = getNativeFromReactElement(realReact);
+      sendMessage({
+        method: 'inlineStyleOnce',
+        payload: createInlineStyle(nodeId, realDom),
+      })
+    }
+  },
+  matchedStyleOnce: ({ nodeId }) => {
+    const id = parseInt(nodeId);
+    const { element, node } = reactElementIds[id] || {};
+    if (element) {
+      const realReact = componentElementMapping.get(element);
+      const realDom = getNativeFromReactElement(realReact);
+      sendMessage({
+        method: 'matchedStyleOnce',
+        payload: createMathedStyle(nodeId, realDom),
+      })
+    }
+  },
+  styleOnce: ({ nodeId }) => {
+    const id = parseInt(nodeId);
+    const { element, node } = reactElementIds[id] || {};
+    if (element) {
+      const realReact = componentElementMapping.get(element);
+      const realDom = getNativeFromReactElement(realReact);
+      const inlineStyle = createInlineStyle(nodeId, realDom);
+      const matchedStyle = createMathedStyle(nodeId, realDom);
 
+      console.log({
+        inlineStyle, matchedStyle,
+      });
+
+      sendMessage({
+        method: 'styleOnce',
+        payload: {
+          inlineStyle, matchedStyle,
+        }
+      })
+    }
   },
 };
 
 // handle all messages from devtools
 ipc.on('devtools', (event, args) => {
   const { method, payload } = args;
-  messageHandler[method](payload);
+  if (messageHandler[method]) {
+    messageHandler[method](payload);
+  } else {
+    throw neww Error(`Error: method ${method} is not defined`);
+  }
 });

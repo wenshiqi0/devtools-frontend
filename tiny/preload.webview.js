@@ -1310,6 +1310,81 @@ var sendMessage = function sendMessage(_ref) {
         method: method, payload: payload
     });
 };
+function getStyle(className_) {
+    var ret = [];
+    var styleSheets = window.document.styleSheets;
+    var styleSheetsLength = styleSheets.length;
+    for (var i = 0; i < styleSheetsLength; i++) {
+        var classes = styleSheets[i].rules || styleSheets[i].cssRules;
+        if (!classes) continue;
+        var classesLength = classes.length;
+        for (var x = 0; x < classesLength; x++) {
+            if (classes[x].selectorText == className_) {
+                console.log(classes[x]);
+                var j = 0;
+                var styleKey = void 0;
+                while (styleKey = classes[x].style[j++]) {
+                    var newProperty = {};
+                    newProperty[styleKey] = classes[x].style[styleKey];
+                    ret.push({
+                        name: styleKey,
+                        value: classes[x].style[styleKey]
+                    });
+                }
+                return {
+                    shorthandEntries: [],
+                    cssProperties: ret
+                };
+            }
+        }
+    }
+}
+function createMathedStyle(nodeId, element) {
+    var payload = [];
+    var classList = element.classList;
+    for (var i = 0; i < classList.length; i++) {
+        var prop = getStyle('.' + classList[i]);
+        if (prop) {
+            payload.push({
+                matchingSelectors: [0],
+                rule: {
+                    media: [],
+                    origin: 'regular',
+                    selectorList: {
+                        text: '.' + classList[i],
+                        selectors: [{ text: '.' + classList[i] }]
+                    },
+                    style: prop
+                }
+            });
+        }
+    }
+    return payload;
+}
+function createInlineStyle(nodeId, realDom) {
+    var style = realDom.style;
+    var cssProperties = [];
+    style.cssText.split(';').forEach(function (text) {
+        var splited = text.split(':');
+        var name = splited[0];
+        var value = splited[1];
+        if (value) {
+            cssProperties.push({
+                disabled: false,
+                implicit: false,
+                value: value.replace(/^\s/g, '').replace(/\s$/g, ''),
+                name: name.replace(/\s/g, ''),
+                text: text
+            });
+        }
+    });
+    return {
+        cssText: style.cssText,
+        shorthandEntries: [],
+        cssProperties: cssProperties,
+        styleSheetId: nodeId * 10 + 1
+    };
+}
 var messageHandler = {
     refresh: function refresh() {
         sendMessage({
@@ -1358,14 +1433,79 @@ var messageHandler = {
             container = null;
         }
     },
-    style: function style() {}
+    inlineStyleOnce: function inlineStyleOnce(_ref4) {
+        var nodeId = _ref4.nodeId;
+
+        var id = parseInt(nodeId);
+
+        var _ref5 = reactElementIds[id] || {},
+            element = _ref5.element,
+            node = _ref5.node;
+
+        if (element) {
+            var realReact = componentElementMapping.get(element);
+            var realDom = getNativeFromReactElement(realReact);
+            sendMessage({
+                method: 'inlineStyleOnce',
+                payload: createInlineStyle(nodeId, realDom)
+            });
+        }
+    },
+    matchedStyleOnce: function matchedStyleOnce(_ref6) {
+        var nodeId = _ref6.nodeId;
+
+        var id = parseInt(nodeId);
+
+        var _ref7 = reactElementIds[id] || {},
+            element = _ref7.element,
+            node = _ref7.node;
+
+        if (element) {
+            var realReact = componentElementMapping.get(element);
+            var realDom = getNativeFromReactElement(realReact);
+            sendMessage({
+                method: 'matchedStyleOnce',
+                payload: createMathedStyle(nodeId, realDom)
+            });
+        }
+    },
+    styleOnce: function styleOnce(_ref8) {
+        var nodeId = _ref8.nodeId;
+
+        var id = parseInt(nodeId);
+
+        var _ref9 = reactElementIds[id] || {},
+            element = _ref9.element,
+            node = _ref9.node;
+
+        if (element) {
+            var realReact = componentElementMapping.get(element);
+            var realDom = getNativeFromReactElement(realReact);
+            var inlineStyle = createInlineStyle(nodeId, realDom);
+            var matchedStyle = createMathedStyle(nodeId, realDom);
+            console.log({
+                inlineStyle: inlineStyle, matchedStyle: matchedStyle
+            });
+            sendMessage({
+                method: 'styleOnce',
+                payload: {
+                    inlineStyle: inlineStyle, matchedStyle: matchedStyle
+                }
+            });
+        }
+    }
 };
 // handle all messages from devtools
 _electron.ipcRenderer.on('devtools', function (event, args) {
     var method = args.method,
         payload = args.payload;
 
-    messageHandler[method](payload);
+    if (messageHandler[method]) {
+        messageHandler[method](payload);
+    } else {
+        throw neww;
+        Error('Error: method ' + method + ' is not defined');
+    }
 });
 
 /***/ }),

@@ -85,6 +85,9 @@ Elements.ElementsPanel = class extends UI.Panel {
     this._treeOutlineHeaders = new Map();
     Common.moduleSetting('showUAShadowDOM').addChangeListener(this._showUAShadowDOMChanged.bind(this));
 
+    Extensions.extensionServer.addEventListener(
+      Extensions.ExtensionServer.Events.SidebarPaneAdded, this._extensionSidebarPaneAdded, this);
+
     // ANT-IDE: we realy do not need these things........
     if (!name) {
       SDK.targetManager.observeModels(SDK.DOMModel, this);
@@ -93,9 +96,7 @@ Elements.ElementsPanel = class extends UI.Panel {
         event => this._targetNameChanged(/** @type {!SDK.Target} */(event.data)));
       SDK.targetManager.addModelListener(
         SDK.DOMModel, SDK.DOMModel.Events.DocumentUpdated, this._documentUpdatedEvent, this);
-      Extensions.extensionServer.addEventListener(
-        Extensions.ExtensionServer.Events.SidebarPaneAdded, this._extensionSidebarPaneAdded, this);
-    } 
+    }
   }
 
   /**
@@ -117,7 +118,7 @@ Elements.ElementsPanel = class extends UI.Panel {
   /**
    * @return {!Element}
    */
-  _createStylesSidebarToolbar() { 
+  _createStylesSidebarToolbar() {
     var container = createElementWithClass('div', 'styles-sidebar-pane-toolbar-container');
     var hbox = container.createChild('div', 'hbox styles-sidebar-pane-toolbar');
     var filterContainerElement = hbox.createChild('div', 'styles-sidebar-pane-filter-box');

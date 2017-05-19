@@ -24,9 +24,9 @@ function fetch(url) {
         proxy: 'http://127.0.0.1:1087',
       })
       .on('response', handleResponse)
-      .on('error', (error) => {
+      .on('error', error => {
         reject(new Error(`Error: ${error}`));
-      })
+      });
   });
 
   function getCallback(resolve, reject, response) {

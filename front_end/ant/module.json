@@ -56,9 +56,9 @@
         "TinyModel.js",
         "TinyConnection.js",
         "StoragePanel.js",
-        "DataPanel.js"
+        "DataPanel.js",
+        "AcssModel.js"
     ],
     "resources": [
-        "axmlPanel.css"
     ]
 }

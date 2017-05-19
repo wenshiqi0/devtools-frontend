@@ -370,6 +370,12 @@ SDK.CSSModel = class extends SDK.SDKModel {
       if (error)
         return null;
 
+      console.log(inlinePayload);
+      console.log(matchedPayload);
+      console.log(pseudoPayload);
+      console.log(inheritedPayload);
+      console.log(animationsPayload);
+
       var node = this._domModel.nodeForId(nodeId);
       if (!node)
         return null;

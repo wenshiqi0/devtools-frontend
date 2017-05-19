@@ -1,5 +1,5 @@
 Ant.TinyModel = class extends SDK.DOMModel {
-  constructor (target) {
+  constructor(target) {
     super(target);
 
     const dispatcher = new Ant.TinyDispatcher(this);
@@ -18,6 +18,10 @@ Ant.TinyModel = class extends SDK.DOMModel {
     this._agent.enable();
   }
 
+  cssModel() {
+    return /** @type {!Ant.AcssModel} */ (this.target().model(Ant.AcssModel));
+  }
+
   requestDocument(node) {
     this._agent.getDocument();
   }
@@ -34,7 +38,7 @@ Ant.TinyModel = class extends SDK.DOMModel {
   _documentUpdated(payload) {
     this._setDocument(payload.root);
   }
-}
+};
 
 Ant.TinyModel.Events = {
   AttrModified: Symbol('tiny-AttrModified'),
@@ -50,13 +54,13 @@ Ant.TinyModel.Events = {
 };
 
 Ant.TinyDispatcher = class extends SDK.DOMDispatcher {
-  constructor (tinyModel) {
+  constructor(tinyModel) {
     super(tinyModel);
   }
 
   documentUpdated({ payload }) {
     this._domModel._documentUpdated(payload);
   }
-}
+};
 
-SDK.SDKModel.register(Ant.TinyModel, SDK.Target.Capability.DOM, false);
+SDK.SDKModel.register(Ant.TinyModel, SDK.Target.Capability.DOM, true);

@@ -312,6 +312,9 @@ Elements.StylesSidebarPane = class extends Elements.ElementsSidebarPane {
    */
   onCSSModelChanged(event) {
     var edit = event && event.data ? /** @type {?SDK.CSSModel.Edit} */ (event.data.edit) : null;
+
+    console.log(edit);
+
     if (edit) {
       for (var section of this.allSections())
         section._styleSheetEdited(edit);

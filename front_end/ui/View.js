@@ -642,7 +642,7 @@ UI.ViewManager._TabbedLocation = class extends UI.ViewManager._Location {
     }
 
     // ANT-IDE: Filter those views that we don't need.
-    var noNeedView = ['elements', 'audits', 'security', 'release-note', 'heap_profiler', 'js_profiler', 'resources', 'timeline'];
+    var noNeedView = ['elements', 'audits', 'audits2', 'security', 'release-note', 'heap_profiler', 'js_profiler', 'resources', 'timeline'];
     views = views.filter(view =>
       !(noNeedView.indexOf(view.viewId()) > -1)
     );

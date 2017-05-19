@@ -9,6 +9,7 @@ var jsonfile = require('jsonfile');
 var utils = require('../utils');
 
 var tinyJson = require('./tiny.json');
+var acssJson = require('./acss.json');
 
 module.exports = function main(protocols, output) {
   var domains = [];
@@ -23,7 +24,7 @@ module.exports = function main(protocols, output) {
   }
 
   // TODO: this is so hack, fix it later.
-  domains = domains.concat(tinyJson);
+  domains = domains.concat(tinyJson, acssJson);
 
   var combinedProtocol = {version, domains};
   jsonfile.writeFileSync(output, combinedProtocol, {spaces: 4});

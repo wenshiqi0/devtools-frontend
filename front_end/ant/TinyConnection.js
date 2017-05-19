@@ -7,8 +7,15 @@ Ant.TinyConnection = class {
 
     window.listenToHost('render', (event, args) => {
       const messageObject = args;
-
-      this._dispatcher[messageObject.method](messageObject);
+      const { method, payload } = args;
+      if (extraMessageHandler[method])
+        extraMessageHandler[method](payload);
+      else if (this._dispatcher[messageObject.method])
+        this._dispatcher[messageObject.method](messageObject);
     });
+
+    const extraMessageHandler = {
+
+    };
   }
-}
+};

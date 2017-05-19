@@ -56,10 +56,12 @@ SDK.CSSStyleDeclaration = class {
     var shorthandEntries = payload.shorthandEntries;
     this._shorthandValues = new Map();
     this._shorthandIsImportant = new Set();
-    for (var i = 0; i < shorthandEntries.length; ++i) {
-      this._shorthandValues.set(shorthandEntries[i].name, shorthandEntries[i].value);
-      if (shorthandEntries[i].important)
-        this._shorthandIsImportant.add(shorthandEntries[i].name);
+    if (shorthandEntries) {
+      for (var i = 0; i < shorthandEntries.length; ++i) {
+        this._shorthandValues.set(shorthandEntries[i].name, shorthandEntries[i].value);
+        if (shorthandEntries[i].important)
+          this._shorthandIsImportant.add(shorthandEntries[i].name);
+      }
     }
 
     this._allProperties = [];
