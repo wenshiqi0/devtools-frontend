@@ -40,6 +40,8 @@ Audits2.Audits2Panel = class extends UI.PanelWithSidebar {
         this.contentElement, [UI.DropTarget.Types.Files], Common.UIString('Drop audit file here'),
         this._handleDrop.bind(this));
 
+    for (var preset of Audits2.Audits2Panel.Presets)
+      preset.setting.addChangeListener(this._updateStartButtonEnabled.bind(this));
     this._showLandingPage();
   }
 
@@ -103,6 +105,7 @@ Audits2.Audits2Panel = class extends UI.PanelWithSidebar {
     var buttonsRow = uiElement.createChild('div', 'audits2-dialog-buttons hbox');
     this._startButton =
         UI.createTextButton(Common.UIString('Run audit'), this._start.bind(this), 'material-button default');
+    this._updateStartButtonEnabled();
     buttonsRow.appendChild(this._startButton);
     this._cancelButton = UI.createTextButton(Common.UIString('Cancel'), this._cancel.bind(this), 'material-button');
     buttonsRow.appendChild(this._cancelButton);
@@ -112,6 +115,18 @@ Audits2.Audits2Panel = class extends UI.PanelWithSidebar {
     this._dialog.show(this.mainElement());
     auditsViewElement.tabIndex = 0;
     auditsViewElement.focus();
+  }
+
+  _updateStartButtonEnabled() {
+    if (!this._startButton)
+      return;
+    for (var preset of Audits2.Audits2Panel.Presets) {
+      if (preset.setting.get()) {
+        this._startButton.disabled = false;
+        return;
+      }
+    }
+    this._startButton.disabled = true;
   }
 
   /**
@@ -155,12 +170,19 @@ Audits2.Audits2Panel = class extends UI.PanelWithSidebar {
           this._updateStatus(Common.UIString('Loading\u2026'));
         })
         .then(_ => this._protocolService.startLighthouse(this._inspectedURL, categoryIDs))
-        .then(lighthouseResult =>
-          this._stopAndReattach().then(() => this._buildReportUI(lighthouseResult))
-        ).catch(err => {
+        .then(lighthouseResult => {
+          if (lighthouseResult && lighthouseResult.fatal) {
+            const error = new Error(lighthouseResult.message);
+            error.stack = lighthouseResult.stack;
+            throw error;
+          }
+
+          return this._stopAndReattach().then(() => this._buildReportUI(lighthouseResult));
+        })
+        .catch(err => {
           if (err instanceof Error)
             this._renderBugReport(err);
-         });
+        });
   }
 
   _hideDialog() {
@@ -266,6 +288,8 @@ Audits2.Audits2Panel = class extends UI.PanelWithSidebar {
     var title = encodeURI('title=DevTools Error: ' + err.message.substring(0, 60));
 
     var qsBody = '';
+    qsBody += '**Initial URL**: ' + this._inspectedURL + '\n';
+    qsBody += '**Chrome Version**: ' + navigator.userAgent.match(/Chrome\/(\S+)/)[1] + '\n';
     qsBody += '**Error Message**: ' + err.message + '\n';
     qsBody += '**Stack Trace**:\n ```' + err.stack + '```';
     var body = '&body=' + encodeURI(qsBody);
@@ -540,7 +564,7 @@ Audits2.Audits2Panel.TreeElement = class extends UI.TreeElement {
       return;
     }
 
-    this._reportContainer = this._resultsView.createChild('div', 'report-container lh-vars lh-root');
+    this._reportContainer = this._resultsView.createChild('div', 'report-container lh-vars lh-root lh-devtools');
 
     var dom = new DOM(/** @type {!Document} */ (this._resultsView.ownerDocument));
     var detailsRenderer = new Audits2.DetailsRenderer(dom);
@@ -554,77 +578,6 @@ Audits2.Audits2Panel.TreeElement = class extends UI.TreeElement {
 
     renderer.setTemplateContext(templatesDOM);
     renderer.renderReport(this._lighthouseResult, this._reportContainer);
-
-    var performanceScoreElement = this._reportContainer.querySelector('.lh-category[id=performance] .lh-score');
-    var artifacts = this._lighthouseResult['artifacts'];
-    if (!performanceScoreElement || !artifacts)
-      return;
-    var tracePass = artifacts['traces'] ? artifacts['traces']['defaultPass'] : null;
-    if (!tracePass)
-      return;
-
-    var fmp = this._lighthouseResult['audits']['first-meaningful-paint'];
-    if (!fmp || !fmp['extendedInfo'])
-      return;
-
-    var tti = this._lighthouseResult['audits']['time-to-interactive'];
-    if (!tti || !tti['extendedInfo'])
-      return;
-
-    var navStart = fmp['extendedInfo']['value']['timestamps']['navStart'];
-    var markers = [
-      {
-        title: Common.UIString('First contentful paint'),
-        value: (fmp['extendedInfo']['value']['timestamps']['fCP'] - navStart) / 1000
-      },
-      {
-        title: Common.UIString('First meaningful paint'),
-        value: (fmp['extendedInfo']['value']['timestamps']['fMP'] - navStart) / 1000
-      },
-      {
-        title: Common.UIString('Time to interactive'),
-        value: (tti['extendedInfo']['value']['timestamps']['timeToInteractive'] - navStart) / 1000
-      },
-      {
-        title: Common.UIString('Visually ready'),
-        value: (tti['extendedInfo']['value']['timestamps']['visuallyReady'] - navStart) / 1000
-      }
-    ];
-
-    var timeSpan = Math.max(...markers.map(marker => marker.value));
-    var screenshots = tracePass.traceEvents.filter(e => e.cat === 'disabled-by-default-devtools.screenshot');
-    var timelineElement = createElementWithClass('div', 'audits2-timeline');
-    var filmStripElement = timelineElement.createChild('div', 'audits2-filmstrip');
-
-    var numberOfFrames = 8;
-    var roundToMs = 100;
-    var timeStep = (Math.ceil(timeSpan / numberOfFrames / roundToMs)) * roundToMs;
-
-    for (var time = 0; time < timeSpan; time += timeStep) {
-      var frameForTime = null;
-      for (var e of screenshots) {
-        if ((e.ts - navStart) / 1000 < time + timeStep)
-          frameForTime = e.args.snapshot;
-      }
-      var frame = filmStripElement.createChild('div', 'frame');
-      frame.createChild('div', 'time').textContent = Number.millisToString(time + timeStep);
-
-      var thumbnail = frame.createChild('div', 'thumbnail');
-      if (frameForTime) {
-        var img = thumbnail.createChild('img');
-        img.src = 'data:image/jpg;base64,' + frameForTime;
-      }
-    }
-
-    for (var marker of markers) {
-      var markerElement = timelineElement.createChild('div', 'audits2-timeline-marker');
-      markerElement.createChild('div', 'audits2-timeline-bar').style.width =
-          (100 * (marker.value / timeSpan) | 0) + '%';
-      markerElement.createChild('span').textContent = Common.UIString('%s: ', marker.title);
-      markerElement.createChild('span', 'audits2-timeline-subtitle').textContent = Number.millisToString(marker.value);
-    }
-
-    performanceScoreElement.parentElement.insertBefore(timelineElement, performanceScoreElement.nextSibling);
   }
 };
 
