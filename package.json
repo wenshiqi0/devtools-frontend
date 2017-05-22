@@ -1,6 +1,7 @@
 {
   "name": "ant-devtools-frontend",
   "description": "Ant DevTools UI From Chrome",
+  "version": "0.0.1",
   "scripts": {
     "dev": "npm run build:webview",
     "build": "gulp --gulpfile scripts/gulp/gulpfile.js",
@@ -20,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ChromeDevTools/devtools-frontend.git"
+    "url": "git+https://github.com/wenshiqi0/devtools-frontend.git"
   },
   "keywords": [
     "devtools",
