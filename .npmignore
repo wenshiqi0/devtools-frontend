@@ -3,3 +3,5 @@ devtools.gypi
 BUILD.gn
 PRESUBMIT.py
 OWNERS
+front_end
+tests
