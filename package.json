@@ -1,13 +1,13 @@
 {
   "name": "ant-devtools-frontend",
   "description": "Ant DevTools UI From Chrome",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "scripts": {
+    "start": "PORT=8999 REMOTE_DEBUGGING_PORT=9999 node index.js",
     "dev": "npm run build:webview",
     "build": "gulp --gulpfile scripts/gulp/gulpfile.js",
     "build:webview": "webpack -w",
     "compile:webview": "webpack",
-    "start": "node scripts/start_chrome_and_server.js",
     "chrome": "node scripts/chrome_debug_launcher/launch_chrome.js",
     "server": "npm run build && PORT=8999 REMOTE_DEBUGGING_PORT=9999 node index.js",
     "test": "node scripts/npm_test.js",
