@@ -42,9 +42,17 @@
                 "SDK.CSSProperty"
             ],
             "className": "Ant.AxmlPanel.CSSPropertyRevealer"
+        },
+        {
+            "type": "@Common.Revealer",
+            "contextTypes": [
+                "SDK.Resource"
+            ],
+            "className": "Ant.AxmlPanel.ResourceRevealer"
         }
     ],
     "dependencies": [
+        "resources",
         "elements",
         "common",
         "host",
