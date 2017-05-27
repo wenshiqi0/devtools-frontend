@@ -4,12 +4,43 @@ const NProgress = require('nprogress');
 
 window.NProgress = NProgress;
 
-window.sendToHost = function () {
+const CALL_PREFIX = 'tea-fn';
+let callCount = 0;
+
+window.sendToHost = (...args) => {
   const ipcRenderer = require('electron').ipcRenderer;
-  ipcRenderer.sendToHost.apply(ipcRenderer, arguments);
+  ipcRenderer.sendToHost(...args);
 };
 
-window.listenToHost = function () {
+window.listenToHost = (...args) => {
   const ipcRenderer = require('electron').ipcRenderer;
-  ipcRenderer.on.apply(ipcRenderer, arguments);
+  ipcRenderer.on(...args);
 };
+
+window.callElectron = (...args) => {
+  const ipcRenderer = require('electron').ipcRenderer;
+  const len = args.length;
+  const lastArg = args[len - 1];
+
+  const hasCallback = typeof lastArg === 'object' && (lastArg.success || lastArg.fail);
+  if (hasCallback) {
+    const { success, fail } = lastArg;
+    const id = `${CALL_PREFIX}-${callCount}`;
+    callCount += 1;
+    if (success) {
+      ipcRenderer.on(`${id}-success`, success);
+    }
+    if (fail) {
+      ipcRenderer.on(`${id}-fail`, fail);
+    }
+    const newArgs = [].slice.call(args, 0, -1).concat({
+      type: 'callElectronArgs',
+      id,
+    });
+    ipcRenderer.sendToHost(...newArgs);
+  } else {
+    ipcRenderer.sendToHost(...args);
+  }
+};
+
+console.log('page load');

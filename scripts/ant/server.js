@@ -4,7 +4,7 @@ const app = new koa();
 const staticMiddlware = require('koa-static');
 
 const remoteDebuggingPort = parseInt(process.env.REMOTE_DEBUGGING_PORT, 10) || 9222;
-const serverPort = parseInt(process.env.PORT, 10) || 8090;
+const serverPort = parseInt(process.env.PORT, 10) || 8999;
 
 app
   .use(convert(function* (next) {

@@ -16,7 +16,7 @@ var utils = require('../utils.js');
 
 var devtoolsPath = path.resolve(path.join(__dirname, '../..'));
 var frontendPath = path.join(devtoolsPath, 'front_end');
-var releasePath = path.join(devtoolsPath, 'release');
+var releasePath = path.join(devtoolsPath, 'release/devtools');
 var scriptsPath = path.join(devtoolsPath, 'scripts');
 
 gulp.task('default', ['build']);

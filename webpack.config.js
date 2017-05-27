@@ -5,11 +5,11 @@ const appPkgDeps = Object.keys(appPkg.dependencies);
 
 module.exports = {
   entry: {
-    preload: path.join(__dirname, 'tiny/devtools/preload.ts'),
+    page: path.join(__dirname, 'tiny/devtools/preload.ts'),
   },
   output: {
-    path: path.join(__dirname, 'tiny'),
-    filename: '[name].webview.js'
+    path: path.join(__dirname, 'tiny/preload'),
+    filename: '[name].js'
   },
   externals(context, request, callback) {
     let isExternal = false;

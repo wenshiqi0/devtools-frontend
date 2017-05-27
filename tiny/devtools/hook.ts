@@ -73,7 +73,7 @@ let loadCheckInterval = setInterval(() => {
 // console.log('tiny-devtools is start to work');
 const checkTinyAndReact = () => {
   // check if react is rendered.
-  if (window.currentTinyPageInstance && window.__REACT_DEVTOOLS_GLOBAL_HOOK__ && window.__REACT_DEVTOOLS_GLOBAL_HOOK__._renderers && Object.keys(window.__REACT_DEVTOOLS_GLOBAL_HOOK__._renderers).length > 0) {
+  if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__ && window.__REACT_DEVTOOLS_GLOBAL_HOOK__._renderers && Object.keys(window.__REACT_DEVTOOLS_GLOBAL_HOOK__._renderers).length > 0) {
     clearInterval(loadCheckInterval);
     try {
       setupBackend(globalHook);

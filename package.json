@@ -1,8 +1,8 @@
 {
   "name": "ant-devtools-frontend",
   "description": "Ant DevTools UI From Chrome",
-  "version": "0.0.3",
-  "main": "scripts/ant/server.js",
+  "version": "0.0.8",
+  "main": "index.js",
   "scripts": {
     "start": "PORT=8999 REMOTE_DEBUGGING_PORT=9999 node scripts/ant/server.js",
     "dev": "npm run build:webview",
