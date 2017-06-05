@@ -6,3 +6,14 @@ OWNERS
 front_end
 tests
 tiny/devtools
+node_modules/
+scripts/
+services/
+tiny/devtools/
+.babelrc
+.clang-format
+.eslintignore
+.eslintrc.js
+.gitignore
+.style.yapf
+webpack.config.js
