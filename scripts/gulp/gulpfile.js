@@ -17,13 +17,15 @@ var utils = require('../utils.js');
 var devtoolsPath = path.resolve(path.join(__dirname, '../..'));
 var frontendPath = path.join(devtoolsPath, 'front_end');
 var releasePath = path.join(devtoolsPath, 'release/devtools');
+var deletePath = path.join(devtoolsPath, 'release');
 var scriptsPath = path.join(devtoolsPath, 'scripts');
 
 gulp.task('default', ['build']);
 
 gulp.task('clean', cleanTask);
 function cleanTask() {
-  del.sync([releasePath], {force: true});
+  del.sync([deletePath], {force: true});
+  fs.mkdirSync(deletePath);
   fs.mkdirSync(releasePath);
 }
 
