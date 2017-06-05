@@ -4,8 +4,8 @@
             "type": "view",
             "location": "panel",
             "id": "axml",
-            "title": "Axml",
-            "order": 10,
+            "title": "AXML",
+            "order": 20,
             "className": "Ant.AxmlPanel",
             "tags": "ant, tiny, ide"
         },
@@ -14,7 +14,7 @@
             "location": "panel",
             "id": "storage",
             "title": "Storage",
-            "order": 20,
+            "order": 30,
             "className": "Ant.StoragePanel",
             "tags": "ant, tiny, ide"
         },
@@ -23,7 +23,7 @@
             "location": "panel",
             "id": "data",
             "title": "Data",
-            "order": 30,
+            "order": 40,
             "className": "Ant.DataPanel",
             "tags": "ant, tiny, ide"
         },
