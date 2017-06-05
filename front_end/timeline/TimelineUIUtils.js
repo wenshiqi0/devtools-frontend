@@ -333,6 +333,35 @@ Timeline.TimelineUIUtils = class {
   }
 
   /**
+   * @param {!ProductRegistry.Registry} productRegistry
+   * @param {!TimelineModel.TimelineModel} model
+   * @param {!Map<string, string>} urlToColorCache
+   * @param {!SDK.TracingModel.Event} event
+   * @return {string}
+   */
+  static eventColorByProduct(productRegistry, model, urlToColorCache, event) {
+    var url = Timeline.TimelineUIUtils.eventURL(event) || '';
+    var color = urlToColorCache.get(url);
+    if (color)
+      return color;
+    var defaultColor = '#f2ecdc';
+    var parsedURL = url.asParsedURL();
+    if (!parsedURL)
+      return defaultColor;
+    var name = productRegistry && productRegistry.nameForUrl(parsedURL);
+    if (!name) {
+      name = parsedURL.host;
+      var rootFrames = model.rootFrames();
+      if (rootFrames.some(pageFrame => new Common.ParsedURL(pageFrame.url).host === name))
+        color = defaultColor;
+    }
+    if (!color)
+      color = name ? ProductRegistry.BadgePool.colorForEntryName(name) : defaultColor;
+    urlToColorCache.set(url, color);
+    return color;
+  }
+
+  /**
    * @param {!SDK.TracingModel.Event} event
    * @return {string}
    */
@@ -728,10 +757,8 @@ Timeline.TimelineUIUtils = class {
         Timeline.TimelineUIUtils._collectInvalidationNodeIds(nodeIdsToResolve, invalidationTrackingEvents);
       if (nodeIdsToResolve.size) {
         var domModel = target.model(SDK.DOMModel);
-        if (domModel) {
-          relatedNodesMap =
-              await new Promise(fulfill => domModel.pushNodesByBackendIdsToFrontend(nodeIdsToResolve, fulfill));
-        }
+        if (domModel)
+          relatedNodesMap = await domModel.pushNodesByBackendIdsToFrontend(nodeIdsToResolve);
       }
     }
 
@@ -798,7 +825,7 @@ Timeline.TimelineUIUtils = class {
         if (eventData['mimeType'])
           contentHelper.appendTextRow(Common.UIString('MIME Type'), eventData['mimeType']);
         if ('priority' in eventData) {
-          var priority = NetworkConditions.uiLabelForPriority(eventData['priority']);
+          var priority = NetworkPriorities.uiLabelForPriority(eventData['priority']);
           contentHelper.appendTextRow(Common.UIString('Priority'), priority);
         }
         if (eventData['encodedDataLength']) {
@@ -955,7 +982,7 @@ Timeline.TimelineUIUtils = class {
   static _maybeAppendProductToDetails(contentHelper, badgePool, url) {
     var parsedURL = url ? url.asParsedURL() : null;
     if (parsedURL)
-      contentHelper.appendElementRow('', badgePool.badgeForURL(parsedURL, true));
+      contentHelper.appendElementRow('', badgePool.badgeForURL(parsedURL));
   }
 
   /**
@@ -1115,7 +1142,7 @@ Timeline.TimelineUIUtils = class {
       contentHelper.appendTextRow(Common.UIString('Request Method'), request.requestMethod);
     if (typeof request.priority === 'string') {
       const priority =
-          NetworkConditions.uiLabelForPriority(/** @type {!Protocol.Network.ResourcePriority} */ (request.priority));
+          NetworkPriorities.uiLabelForPriority(/** @type {!Protocol.Network.ResourcePriority} */ (request.priority));
       contentHelper.appendTextRow(Common.UIString('Priority'), priority);
     }
     if (request.mimeType)
@@ -1386,7 +1413,7 @@ Timeline.TimelineUIUtils = class {
     var snapshotWithRect = await new TimelineModel.LayerPaintEvent(event, target).snapshotPromise();
     if (!snapshotWithRect)
       return null;
-    var imageURLPromise = snapshotWithRect.snapshot.replay(null, null, 1);
+    var imageURLPromise = snapshotWithRect.snapshot.replay();
     snapshotWithRect.snapshot.release();
     var imageURL = await imageURLPromise;
     if (!imageURL)
@@ -1398,13 +1425,10 @@ Timeline.TimelineUIUtils = class {
     img.src = imageURL;
     var paintProfilerButton = container.createChild('a');
     paintProfilerButton.textContent = Common.UIString('Paint Profiler');
-    container.addEventListener('click', showPaintProfiler, false);
+    container.addEventListener(
+        'click', () => Timeline.TimelinePanel.instance().select(Timeline.TimelineSelection.fromTraceEvent(event)),
+        false);
     return container;
-
-    function showPaintProfiler() {
-      Timeline.TimelinePanel.instance().select(
-          Timeline.TimelineSelection.fromTraceEvent(event), Timeline.TimelineDetailsView.Tab.PaintProfiler);
-    }
   }
 
   /**

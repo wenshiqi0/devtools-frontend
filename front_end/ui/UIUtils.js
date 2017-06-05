@@ -669,6 +669,24 @@ UI.installComponentRootStyles = function(element) {
   UI.appendStyle(element, 'ui/inspectorCommon.css');
   UI.themeSupport.injectHighlightStyleSheets(element);
   element.classList.add('platform-' + Host.platform());
+
+  /**
+   * Detect overlay scrollbar enable by checking clientWidth and offsetWidth of
+   * overflow: scroll div.
+   * @param {?Document=} document
+   * @return {boolean}
+   */
+  function overlayScrollbarEnabled(document) {
+    var scrollDiv = document.createElement('div');
+    scrollDiv.setAttribute('style', 'width: 100px; height: 100px; overflow: scroll;');
+    document.body.appendChild(scrollDiv);
+    var scrollbarWidth = scrollDiv.offsetWidth - scrollDiv.clientWidth;
+    document.body.removeChild(scrollDiv);
+    return scrollbarWidth === 0;
+  }
+
+  if (!Host.isMac() && overlayScrollbarEnabled(element.ownerDocument))
+    element.classList.add('overlay-scrollbar-enabled');
 };
 
 /**
@@ -1152,16 +1170,13 @@ UI.registerCustomElement = function(localName, typeExtension, prototype) {
  * @param {string} text
  * @param {function(!Event)=} clickHandler
  * @param {string=} className
- * @param {string=} title
  * @return {!Element}
  */
-UI.createTextButton = function(text, clickHandler, className, title) {
+UI.createTextButton = function(text, clickHandler, className) {
   var element = createElementWithClass('button', className || '', 'text-button');
   element.textContent = text;
   if (clickHandler)
     element.addEventListener('click', clickHandler, false);
-  if (title)
-    element.title = title;
   return element;
 };
 

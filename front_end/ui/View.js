@@ -668,7 +668,9 @@ UI.ViewManager._TabbedLocation = class extends UI.ViewManager._Location {
    * @param {!UI.ContextMenu} contextMenu
    */
   _appendTabsToMenu(contextMenu) {
-    for (var view of this._views.values()) {
+    var views = Array.from(this._views.values());
+    views.sort((viewa, viewb) => viewa.title().localeCompare(viewb.title()));
+    for (var view of views) {
       var title = Common.UIString(view.title());
       contextMenu.appendItem(title, this.showView.bind(this, view, undefined, true));
     }
@@ -716,6 +718,16 @@ UI.ViewManager._TabbedLocation = class extends UI.ViewManager._Location {
       }
     }
     this._appendTab(view, index);
+
+    if (view.isCloseable()) {
+      var tabs = this._closeableTabSetting.get();
+      var tabId = view.viewId();
+      if (!tabs[tabId]) {
+        tabs[tabId] = true;
+        this._closeableTabSetting.set(tabs);
+      }
+    }
+    this._persistTabOrder();
   }
 
   /**
@@ -754,17 +766,6 @@ UI.ViewManager._TabbedLocation = class extends UI.ViewManager._Location {
     var tabId = /** @type {string} */ (event.data.tabId);
     if (this._lastSelectedTabSetting && event.data['isUserGesture'])
       this._lastSelectedTabSetting.set(tabId);
-    var view = this._views.get(tabId);
-    if (!view)
-      return;
-
-    if (view.isCloseable()) {
-      var tabs = this._closeableTabSetting.get();
-      if (!tabs[tabId]) {
-        tabs[tabId] = true;
-        this._closeableTabSetting.set(tabs);
-      }
-    }
   }
 
   /**
@@ -779,10 +780,7 @@ UI.ViewManager._TabbedLocation = class extends UI.ViewManager._Location {
     }
   }
 
-  /**
-   * @param {!Common.Event} event
-   */
-  _persistTabOrder(event) {
+  _persistTabOrder() {
     var tabIds = this._tabbedPane.tabIds();
     var tabOrders = {};
     for (var i = 0; i < tabIds.length; i++)

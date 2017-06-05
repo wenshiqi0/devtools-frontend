@@ -288,7 +288,7 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
    * @override
    */
   expandRecursively() {
-    this._node.getSubtree(-1, UI.TreeElement.prototype.expandRecursively.bind(this, Number.MAX_VALUE));
+    this._node.getSubtree(-1).then(UI.TreeElement.prototype.expandRecursively.bind(this, Number.MAX_VALUE));
   }
 
   /**
@@ -735,12 +735,12 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
   /**
    * @param {function(string, string)} commitCallback
    * @param {function()} disposeCallback
-   * @param {?Protocol.Error} error
-   * @param {string} initialValue
+   * @param {?string} maybeInitialValue
    */
-  _startEditingAsHTML(commitCallback, disposeCallback, error, initialValue) {
-    if (error)
+  _startEditingAsHTML(commitCallback, disposeCallback, maybeInitialValue) {
+    if (maybeInitialValue === null)
       return;
+    var initialValue = maybeInitialValue;  // To suppress a compiler warning.
     if (this._editing)
       return;
 
@@ -1276,7 +1276,7 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
         value = value.trimMiddle(60);
       var link = node.nodeName().toLowerCase() === 'a' ?
           UI.createExternalLink(rewrittenHref, value, '', true) :
-          Components.Linkifier.linkifyURL(rewrittenHref, value, '', undefined, undefined, true);
+          Components.Linkifier.linkifyURL(rewrittenHref, {text: value, preventClick: true});
       link[Elements.ElementsTreeElement.HrefSymbol] = rewrittenHref;
       return link;
     }
@@ -1595,7 +1595,7 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
     }
 
     var node = this._node;
-    node.getOuterHTML(this._startEditingAsHTML.bind(this, commitChange, disposeCallback));
+    node.getOuterHTML().then(this._startEditingAsHTML.bind(this, commitChange, disposeCallback));
   }
 
   _copyCSSPath() {

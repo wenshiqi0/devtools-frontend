@@ -96,7 +96,6 @@ Network.NetworkLogView = class extends UI.VBox {
     this.badgePool = new ProductRegistry.BadgePool();
 
     this._recording = false;
-    this._preserveLog = false;
 
     this._headerHeight = 0;
 
@@ -396,13 +395,6 @@ Network.NetworkLogView = class extends UI.VBox {
   setRecording(recording) {
     this._recording = recording;
     this._updateSummaryBar();
-  }
-
-  /**
-   * @param {boolean} preserveLog
-   */
-  setPreserveLog(preserveLog) {
-    this._preserveLog = preserveLog;
   }
 
   /**
@@ -1015,7 +1007,7 @@ Network.NetworkLogView = class extends UI.VBox {
     var priority = request.initialPriority();
     if (priority) {
       this._suggestionBuilder.addItem(
-          Network.NetworkLogView.FilterType.Priority, NetworkConditions.uiLabelForPriority(priority));
+          Network.NetworkLogView.FilterType.Priority, NetworkPriorities.uiLabelForPriority(priority));
     }
 
     if (request.mixedContentType !== 'none') {
@@ -1070,7 +1062,7 @@ Network.NetworkLogView = class extends UI.VBox {
         requestsToPick.push(request);
     }
 
-    if (!this._preserveLog) {
+    if (!Common.moduleSetting('network.preserve-log').get()) {
       this.reset();
       for (var i = 0; i < requestsToPick.length; ++i)
         this._appendRequest(requestsToPick[i]);
@@ -1169,6 +1161,12 @@ Network.NetworkLogView = class extends UI.VBox {
             Common.UIString.capitalize('Unblock ' + croppedDomain), removeBlockedURL.bind(null, domain));
       }
 
+      if (SDK.NetworkManager.canReplayRequest(request)) {
+        contextMenu.appendSeparator();
+        contextMenu.appendItem(Common.UIString('Replay XHR'), SDK.NetworkManager.replayRequest.bind(null, request));
+        contextMenu.appendSeparator();
+      }
+
       /**
        * @param {string} url
        */
@@ -1187,12 +1185,6 @@ Network.NetworkLogView = class extends UI.VBox {
         manager.setBlockedPatterns(patterns);
         UI.viewManager.showView('network.blocked-urls');
       }
-    }
-
-    if (request && request.resourceType() === Common.resourceTypes.XHR) {
-      contextMenu.appendSeparator();
-      contextMenu.appendItem(Common.UIString('Replay XHR'), request.replayXHR.bind(request));
-      contextMenu.appendSeparator();
     }
   }
 
@@ -1551,7 +1543,7 @@ Network.NetworkLogView = class extends UI.VBox {
         return Network.NetworkLogView._requestSetCookieValueFilter.bind(null, value);
 
       case Network.NetworkLogView.FilterType.Priority:
-        return Network.NetworkLogView._requestPriorityFilter.bind(null, NetworkConditions.uiLabelToPriority(value));
+        return Network.NetworkLogView._requestPriorityFilter.bind(null, NetworkPriorities.uiLabelToPriority(value));
 
       case Network.NetworkLogView.FilterType.StatusCode:
         return Network.NetworkLogView._statusCodeFilter.bind(null, value);

@@ -18,7 +18,7 @@ Resources.ServiceWorkersView = class extends UI.VBox {
     /** @type {!Map<!SDK.ServiceWorkerRegistration, !Resources.ServiceWorkersView.Section>} */
     this._sections = new Map();
 
-    this._toolbar.appendToolbarItem(NetworkConditions.NetworkConditionsSelector.createOfflineToolbarCheckbox());
+    this._toolbar.appendToolbarItem(MobileThrottling.NetworkConditionsSelector.createOfflineToolbarCheckbox());
     var updateOnReloadSetting = Common.settings.createSetting('serviceWorkerUpdateOnReload', false);
     updateOnReloadSetting.setTitle(Common.UIString('Update on reload'));
     var forceUpdate = new UI.ToolbarSettingCheckbox(
@@ -261,7 +261,7 @@ Resources.ServiceWorkersView.Section = class {
       var scriptElement = this._section.appendField(Common.UIString('Source'));
       scriptElement.removeChildren();
       var fileName = Common.ParsedURL.extractName(active.scriptURL);
-      scriptElement.appendChild(Components.Linkifier.linkifyURL(active.scriptURL, fileName));
+      scriptElement.appendChild(Components.Linkifier.linkifyURL(active.scriptURL, {text: fileName}));
       scriptElement.createChild('div', 'report-field-value-subtitle').textContent =
           Common.UIString('Received %s', new Date(active.scriptResponseTime * 1000).toLocaleString());
 
@@ -287,7 +287,7 @@ Resources.ServiceWorkersView.Section = class {
           this._updateClientInfo(
               clientLabelText, /** @type {!Protocol.Target.TargetInfo} */ (this._clientInfoCache.get(client)));
         }
-        this._manager.target().targetAgent().getTargetInfo(client, this._onClientInfo.bind(this, clientLabelText));
+        this._manager.target().targetAgent().getTargetInfo(client).then(this._onClientInfo.bind(this, clientLabelText));
       }
     }
 
@@ -382,11 +382,10 @@ Resources.ServiceWorkersView.Section = class {
 
   /**
    * @param {!Element} element
-   * @param {?Protocol.Error} error
    * @param {?Protocol.Target.TargetInfo} targetInfo
    */
-  _onClientInfo(element, error, targetInfo) {
-    if (error || !targetInfo)
+  _onClientInfo(element, targetInfo) {
+    if (!targetInfo)
       return;
     this._clientInfoCache.set(targetInfo.targetId, targetInfo);
     this._updateClientInfo(element, targetInfo);
