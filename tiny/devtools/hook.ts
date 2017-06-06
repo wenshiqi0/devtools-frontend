@@ -94,6 +94,21 @@ const sendMessage = ({ method, payload }) => {
   })
 }
 
+const shortHandsConst = ['margin', 'padding', 'borderRadius', 'border', 'background', 'font', 'flex', 'animation'];
+
+function handleShortHands(styles) {
+  const shortHands = [];
+  shortHandsConst.forEach(name => {
+    if (styles[name]) {
+      shortHands.push({
+        name: name.replace(/([A-Z])/g, "-$1").toLowerCase(),
+        value: styles[name],
+      })
+    }
+  })
+  return shortHands;
+}
+
 function getStyle(className_) {
   const ret = [];
   const styleSheets = window.document.styleSheets;
@@ -105,10 +120,9 @@ function getStyle(className_) {
     const classesLength = classes.length;
     for (var x = 0; x < classesLength; x++) {
       if (classes[x].selectorText == className_) {
-        console.log(classes[x]);
         let j = 0;
         let styleKey;
-        while(styleKey = classes[x].style[j++]) {
+        while (styleKey = classes[x].style[j++]) {
           const newProperty = {};
           newProperty[styleKey] = classes[x].style[styleKey];
           ret.push({
@@ -117,7 +131,7 @@ function getStyle(className_) {
           });
         }
         return {
-          shorthandEntries: [],
+          shorthandEntries: handleShortHands(classes[x].style),
           cssProperties: ret,
         };
       }
@@ -144,7 +158,7 @@ function createMathedStyle(nodeId: String, element: Element) {
           style: prop,
         }
       });
-    } 
+    }
   }
 
   return payload;
@@ -154,9 +168,9 @@ function createInlineStyle(nodeId: String, realDom: Element) {
   const style = realDom.style as CSSStyleDeclaration;
   const cssProperties = [];
   style.cssText.split(';').forEach(text => {
-    const splited = text.split(':');
-    const name = splited[0];
-    const value = splited[1];
+    const splited = text.split(/:/);
+    const name = splited.shift();
+    const value = splited.join(':');
     if (value) {
       cssProperties.push({
         disabled: false,
@@ -252,11 +266,6 @@ const messageHandler = {
       const realDom = getNativeFromReactElement(realReact);
       const inlineStyle = createInlineStyle(nodeId, realDom);
       const matchedStyle = createMathedStyle(nodeId, realDom);
-
-      console.log({
-        inlineStyle, matchedStyle,
-      });
-
       sendMessage({
         method: 'styleOnce',
         payload: {
@@ -273,6 +282,6 @@ ipc.on('devtools', (event, args) => {
   if (messageHandler[method]) {
     messageHandler[method](payload);
   } else {
-    throw neww Error(`Error: method ${method} is not defined`);
+    throw new Error(`Error: method ${method} is not defined`);
   }
 });

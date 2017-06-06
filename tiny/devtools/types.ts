@@ -5,6 +5,13 @@ export type Dest = 'firstChild' | 'lastChild' | 'prevSibling' | 'nextSibling' | 
 
 export type ElementID = string;
 
+export interface Global extends Window {
+  NProgress: any,
+  sendToHost: Function,
+  listenToHost: Function,
+  callElectron: Function,
+}
+
 export type DOMNode = {
   appendChild: (child: DOMNode) => void,
   childNodes: Array<DOMNode>,
@@ -22,7 +29,7 @@ export type DOMNode = {
   nodeType: number,
   offsetHeight: number,
   offsetLeft: number,
-  offsetParent: ?DOMNode,
+  offsetParent: DOMNode,
   offsetTop: number,
   offsetWidth: number,
   onclick?: (evt: DOMEvent) => void,
@@ -51,4 +58,4 @@ export type DOMEvent = {
 
 export type ControlState = {
   enabled: boolean,
-} & Record;
+};

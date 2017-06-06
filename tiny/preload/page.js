@@ -1407,6 +1407,19 @@ var sendMessage = function sendMessage(_ref) {
         method: method, payload: payload
     });
 };
+var shortHandsConst = ['margin', 'padding', 'borderRadius', 'border', 'background', 'font', 'flex', 'animation'];
+function handleShortHands(styles) {
+    var shortHands = [];
+    shortHandsConst.forEach(function (name) {
+        if (styles[name]) {
+            shortHands.push({
+                name: name.replace(/([A-Z])/g, "-$1").toLowerCase(),
+                value: styles[name]
+            });
+        }
+    });
+    return shortHands;
+}
 function getStyle(className_) {
     var ret = [];
     var styleSheets = window.document.styleSheets;
@@ -1417,7 +1430,6 @@ function getStyle(className_) {
         var classesLength = classes.length;
         for (var x = 0; x < classesLength; x++) {
             if (classes[x].selectorText == className_) {
-                console.log(classes[x]);
                 var j = 0;
                 var styleKey = void 0;
                 while (styleKey = classes[x].style[j++]) {
@@ -1429,7 +1441,7 @@ function getStyle(className_) {
                     });
                 }
                 return {
-                    shorthandEntries: [],
+                    shorthandEntries: handleShortHands(classes[x].style),
                     cssProperties: ret
                 };
             }
@@ -1462,9 +1474,9 @@ function createInlineStyle(nodeId, realDom) {
     var style = realDom.style;
     var cssProperties = [];
     style.cssText.split(';').forEach(function (text) {
-        var splited = text.split(':');
-        var name = splited[0];
-        var value = splited[1];
+        var splited = text.split(/:/);
+        var name = splited.shift();
+        var value = splited.join(':');
         if (value) {
             cssProperties.push({
                 disabled: false,
@@ -1580,9 +1592,6 @@ var messageHandler = {
             var realDom = getNativeFromReactElement(realReact);
             var inlineStyle = createInlineStyle(nodeId, realDom);
             var matchedStyle = createMathedStyle(nodeId, realDom);
-            console.log({
-                inlineStyle: inlineStyle, matchedStyle: matchedStyle
-            });
             sendMessage({
                 method: 'styleOnce',
                 payload: {
@@ -1600,8 +1609,7 @@ _electron.ipcRenderer.on('devtools', function (event, args) {
     if (messageHandler[method]) {
         messageHandler[method](payload);
     } else {
-        throw neww;
-        Error('Error: method ' + method + ' is not defined');
+        throw new Error('Error: method ' + method + ' is not defined');
     }
 });
 

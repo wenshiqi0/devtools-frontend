@@ -1,4 +1,7 @@
 import './hook';
+import { Global } from './types.ts';
+
+declare const window: Global;
 
 const NProgress = require('nprogress');
 

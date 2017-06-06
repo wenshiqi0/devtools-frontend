@@ -10,7 +10,7 @@
  */
 'use strict';
 
-import {DOMNode, DOMEvent} from '../types';
+import {DOMNode, DOMEvent} from './types';
 
 var Overlay = require('./Overlay');
 var MultiOverlay = require('./MultiOverlay');
@@ -20,8 +20,8 @@ var MultiOverlay = require('./MultiOverlay');
  * hover-to-inspect.
  */
 class Highlighter {
-  _overlay: ?Overlay;
-  _multiOverlay: ?MultiOverlay;
+  _overlay: Overlay;
+  _multiOverlay: MultiOverlay;
   _win: Object;
   _onSelect: (node: DOMNode) => void;
   _inspecting: boolean;
