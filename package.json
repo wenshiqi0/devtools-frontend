@@ -1,7 +1,7 @@
 {
   "name": "ant-devtools-frontend",
   "description": "Ant DevTools UI From Chrome",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "index.js",
   "scripts": {
     "start": "PORT=8999 REMOTE_DEBUGGING_PORT=9999 node server/server.js",
