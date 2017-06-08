@@ -221,6 +221,8 @@ TextUtils.TextRange = class {
   relativeTo(line, column) {
     var relative = this.clone();
 
+    console.log(relative);
+
     if (this.startLine === line)
       relative.startColumn -= column;
     if (this.endLine === line)

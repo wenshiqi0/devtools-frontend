@@ -95,8 +95,6 @@ SDK.CSSMatchedStyles = class {
       parentNode = parentNode.parentNode;
     }
 
-    console.log('pseudo section');
-
     // Set up pseudo styles map.
     this._pseudoStyles = new Map();
     if (pseudoPayload) {

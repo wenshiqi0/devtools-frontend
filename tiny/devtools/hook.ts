@@ -21,6 +21,8 @@ let realPropsTree;
 let componentElementMapping;
 let getNativeFromReactElement;
 
+let cssTempState = {};
+
 // React devtools gloabl hook.
 // The hook is setupped before the <head> dom ready,
 // so it can not be install here.
@@ -109,6 +111,64 @@ function handleShortHands(styles) {
   return shortHands;
 }
 
+function initRange(normalise) {
+  // const textArray = text.split('\n');
+  // const endColumn = textArray[0].length;
+  console.log('nonono, ', normalise);
+  return {
+    startLine: 1,
+    startColumn: 2,
+    endColumn: 2,
+    endLine: normalise.length + 2,
+  }
+}
+
+function makeRange(index, inlineText) {
+  /*
+  let startLine = normalise.indexOf(`  ${inlineText}`);
+  let endColumn = startColumn + inlineText.length;
+  if (startColumn === -1) {
+    startColumn = 0;
+    endColumn = 0;
+  }
+  */
+  return {
+    startLine: index + 2,
+    endLine: index + 2,
+    startColumn: 2,
+    endColumn: 2 + inlineText.length,
+  }
+}
+
+function makeProperties(text) {
+  const ret = [];
+  const shorthands = [];
+  const normalise = [];
+  const realText = text.split('{')[1].split('}')[0];
+  const properties = realText.split(';');
+  properties.forEach((element, index) => {
+    const splited = element.split(/:/);
+    const final = element.trim();
+    const name = splited.shift().trim();
+    const value = splited.join(':').trim();
+    ret.push({
+      name,
+      value,
+      range: makeRange(index, final),
+      text: final,
+    });
+    shorthands.push(name);
+    normalise.push(`  ${name}: ${value};`)
+  });
+  normalise.pop();
+  ret.pop();
+  return {
+    properties: ret,
+    shorthands,
+    normalise,
+  };
+}
+
 function getStyle(className_) {
   const ret = [];
   const styleSheets = window.document.styleSheets;
@@ -120,19 +180,26 @@ function getStyle(className_) {
     const classesLength = classes.length;
     for (var x = 0; x < classesLength; x++) {
       if (classes[x].selectorText == className_) {
+        const { properties, shorthands, normalise } = makeProperties(classes[x].cssText);
         let j = 0;
         let styleKey;
         while (styleKey = classes[x].style[j++]) {
+          if (shorthands.indexOf(styleKey) > -1) continue;
           const newProperty = {};
+          const text = `${styleKey}: ${classes[x].style[styleKey]}`;
           newProperty[styleKey] = classes[x].style[styleKey];
           ret.push({
             name: styleKey,
             value: classes[x].style[styleKey],
+            text,
           });
         }
         return {
+          styleSheetId: x*100 + i,
+          cssText: `\n${normalise.join('\n')}\n  `,
+          range: initRange(normalise),
           shorthandEntries: handleShortHands(classes[x].style),
-          cssProperties: ret,
+          cssProperties: properties.concat(ret),
         };
       }
     }
@@ -156,7 +223,7 @@ function createMathedStyle(nodeId: String, element: Element) {
             selectors: [{ text: `.${classList[i]}` }]
           },
           style: prop,
-        }
+        },
       });
     }
   }
@@ -188,6 +255,19 @@ function createInlineStyle(nodeId: String, realDom: Element) {
     cssProperties,
     styleSheetId: nodeId * 10 + 1,
   }
+}
+
+function handleNewCssText(selector, css) {
+  const properties = css.trim().split('\n');
+  const normalise = [];
+  properties.forEach(property => {
+    const arr = property.split(':');
+    const name = arr[0];
+    let value = arr[1].split(';')[0];
+    if (!value) value = 'inherit';
+    normalise.push(`${name}: ${value};`);
+  })
+  return `${selector}\{${normalise.join(' ')}\}`;
 }
 
 const messageHandler = {
@@ -274,6 +354,73 @@ const messageHandler = {
       })
     }
   },
+  setStyleTextsOnce: (payload) => {
+    const ret = [];
+    const { styleSheetIds, ranges, texts, majorChange } = payload;
+    styleSheetIds.forEach((id, index) => {
+      const { startColumn, endColumn } = ranges[index];
+      const intId = parseInt(id);
+      const sheetId = intId % 100;
+      const ruleId = parseInt(intId / 100);
+      const styleSheets = window.document.styleSheets;
+      const styleSheet = styleSheets[sheetId];
+      const cssText = ' ' + styleSheet.rules[ruleId].cssText;
+      const selectorText = styleSheet.rules[ruleId].selectorText;
+      const nomarlized = handleNewCssText(selectorText, texts[index]);
+
+      try {
+        styleSheet.deleteRule(ruleId);
+        styleSheet.insertRule(nomarlized, ruleId);
+        const currentText = styleSheet.rules[ruleId].cssText;
+        if (nomarlized.replace(/(\s|\n)/g, '') !== currentText.replace(/\s/g, '')) {
+          styleSheet.deleteRule(ruleId);
+          styleSheet.insertRule(cssText, ruleId);
+        }
+        const payload = getStyle(selectorText);
+        ret.push(payload);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+    sendMessage({
+      method: 'setStyleTextsOnce',
+      payload: ret,
+    })
+  },
+  computedStyleOnce: (payload) => {
+    const { nodeId } = payload;
+    const id = parseInt(nodeId);
+    const { element, node } = reactElementIds[id] || {};
+    if (element) {
+      const realReact = componentElementMapping.get(element);
+      const realDom = getNativeFromReactElement(realReact);
+      const computedStyle = getComputedStyle(realDom);
+      const properties = [];
+      for (let i = 0;i < computedStyle.length; i++) {        
+        properties.push({
+          name: computedStyle[i],
+          value: computedStyle[computedStyle[i]]
+        })
+      }
+      sendMessage({
+        method: 'computedStyleOnce',
+        payload: properties,
+      })
+    }
+  },
+  getStyleSheetTextOnce: (payload) => {
+    const { styleSheetId } = payload;
+    const intId = parseInt(styleSheetId);
+    const sheetId = intId % 100;
+    const ruleId = parseInt(intId / 100);
+    const styleSheets = window.document.styleSheets;
+    const styleSheet = styleSheets[sheetId];
+    const cssText = styleSheet.rules[ruleId].cssText;
+    sendMessage({
+      method: 'getStyleSheetTextOnce',
+      payload: cssText,
+    })
+  }
 };
 
 // handle all messages from devtools

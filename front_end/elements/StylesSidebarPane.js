@@ -313,7 +313,6 @@ Elements.StylesSidebarPane = class extends Elements.ElementsSidebarPane {
   onCSSModelChanged(event) {
     var edit = event && event.data ? /** @type {?SDK.CSSModel.Edit} */ (event.data.edit) : null;
 
-
     if (edit) {
       for (var section of this.allSections())
         section._styleSheetEdited(edit);
@@ -338,7 +337,6 @@ Elements.StylesSidebarPane = class extends Elements.ElementsSidebarPane {
     var node = this.node();
     if (!matchedStyles || !node)
       return;
-
     this._sectionBlocks = this._rebuildSectionsForMatchedStyleRules(matchedStyles);
     var pseudoTypes = [];
     var keys = new Set(matchedStyles.pseudoStyles().keys());
@@ -972,8 +970,9 @@ Elements.StylePropertiesSection = class {
    * @param {!SDK.CSSModel.Edit} edit
    */
   _styleSheetEdited(edit) {
+    // ANT-IDE: = =;
     var rule = this._style.parentRule;
-    if (rule)
+    if (false)
       rule.rebase(edit);
     else
       this._style.rebase(edit);
@@ -2291,7 +2290,6 @@ Elements.StylePropertyTreeElement = class extends UI.TreeElement {
     // FIXME: we don't allow editing of longhand properties under a shorthand right now.
     if (this.parent.isShorthand)
       return;
-
     if (selectElement === this._expandElement)
       return;
 
@@ -2539,7 +2537,6 @@ Elements.StylePropertyTreeElement = class extends UI.TreeElement {
     // The proxyElement has been deleted, no need to remove listener.
     if (editedElement.parentElement)
       editedElement.parentElement.classList.remove('child-editing');
-
     this._parentPane.setEditingStyle(false);
   }
 

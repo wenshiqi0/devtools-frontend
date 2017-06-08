@@ -6,6 +6,7 @@ Ant.TinyModel = class extends SDK.DOMModel {
     this._tinyConnection = new Ant.TinyConnection(target, dispatcher);
 
     this._agent = target.tinyAgent();
+    this._domAgent = target.domAgent();
 
     this._idToDOMNode = {};
 
@@ -24,6 +25,10 @@ Ant.TinyModel = class extends SDK.DOMModel {
 
   requestDocument(node) {
     this._agent.getDocument();
+  }
+
+  markUndoableState() {
+    this._domAgent.markUndoableState();
   }
 
   _setDocument(payload) {

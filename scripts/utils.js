@@ -21,7 +21,7 @@ function fetch(url) {
         headers: {
           'User-Agent': 'request',
         },
-        // proxy: 'http://127.0.0.1:1087',
+       //  proxy: 'http://127.0.0.1:1087',
       })
       .on('response', handleResponse)
       .on('error', error => {

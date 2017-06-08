@@ -1,7 +1,7 @@
 {
   "name": "ant-devtools-frontend",
   "description": "Ant DevTools UI From Chrome",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "main": "index.js",
   "scripts": {
     "start": "PORT=8999 REMOTE_DEBUGGING_PORT=9999 node server/server.js",
@@ -59,7 +59,6 @@
   "dependencies": {
     "koa": "^2.2.0",
     "koa-convert": "^1.2.0",
-    "koa-static": "^3.0.0",
-    "nprogress": "^0.2.0"
+    "koa-static": "^3.0.0"
   }
 }
