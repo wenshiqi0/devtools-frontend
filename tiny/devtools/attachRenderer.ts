@@ -156,15 +156,15 @@ function scanNode(tree, element, ids, guids) {
 function newNode({ name, nodeType, nodeValue, props }) {
   const attributes = [];
 
-  Object.keys(props).forEach((key) => {
+  Object.keys(props || {}).forEach((key) => {
     attributes.push(key);
-    attributes.push(props[key]);
+    attributes.push(typeof props[key] === 'string' ? props[key] : `{{${String(props[key])}}}`);
   });
 
   return {
     attributes,
-    nodeName: (name as string).toUpperCase(),
-    localName: (name as string).toLowerCase(),
+    nodeName: ((name as string) || '').toUpperCase(),
+    localName: ((name as string) || '').toLowerCase(),
     nodeType,
     nodeId: nodeId,
     backendNodeId: ++nodeId,
