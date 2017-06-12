@@ -145,6 +145,7 @@ function makeRange(index, inlineText) {
 function makeProperties(text, intId) {
   const ret = [];
   const shorthands = [];
+  const allKeys = [];
   const normalise = [];
   const realText = text.split('{')[1].split('}')[0];
   const properties = realText.split(';');
@@ -157,12 +158,13 @@ function makeProperties(text, intId) {
     ret.push({
       name,
       value,
-      range: makeRange(index, disabled ? `/* ${final} */` : final),
-      text: disabled ? `/* ${final} */` : final,
+      range: makeRange(index, disabled ? `/* ${final}; */` : final),
+      text: disabled ? `/* ${final}; */` : final,
       disabled,
     });
-    shorthands.push(name);
-    normalise.push(disabled ? `  /* ${final} */` : `  ${final}`)
+    if (!disabled) shorthands.push(name);
+    allKeys.push(name);
+    normalise.push(disabled ? `  /* ${final}; */` : `  ${final}`)
   });
   normalise.pop();
   ret.pop();
@@ -170,15 +172,14 @@ function makeProperties(text, intId) {
   if (globalDisableCssRule[intId]) {
     let index = ret.length;
     globalDisableCssRule[intId].forEach((value, name) => {
-      if (shorthands.indexOf(name) === -1) {
+      if (allKeys.indexOf(name) === -1) {
         const final = `${name}: ${value};`;
-        shorthands.push(name);
-        normalise.push(`  /* ${final} */`);
+        normalise.push(`  /* ${final}; */`);
         ret.push({
           name,
           value,
-          range: makeRange(index++, `/* ${final} */`),
-          text: `/* ${final} */`,
+          range: makeRange(index++, `/* ${final}; */`),
+          text: `/* ${final}; */`,
           disabled: true,
         });
       }
@@ -284,15 +285,15 @@ function handleNewCssText(selector, css, id) {
   const properties = css.trim().split('\n');
   const normalise = [];
   properties.forEach(property => {
-    let realProperty = property.trim();
+    let realProperty = property.trim().replace(/;/g, '');
     let disable = false;
-    if (realProperty.match(/^\/\*[a-zA-Z\s\-\.0-9\:]*\*\/$/)) {
+    if (realProperty.match(/^\/\*[a-zA-Z\s\-\.0-9\:\;\%]*\*\/$/)) {
       disable = true;
       realProperty = realProperty.replace(/^\/\*/, '').replace(/\*\/$/, '');
     }
     const arr = realProperty.split(':');
     const name = arr[0].trim();
-    let value = arr[1].split(';')[0].trim();
+    let value = arr[1].trim();
     if (!value) value = 'inherit';
     if (disable) {
       normalise.push(`/* ${name}: ${value}; */`);
@@ -409,7 +410,7 @@ const messageHandler = {
         styleSheet.deleteRule(ruleId);
         styleSheet.insertRule(normalized, ruleId);
         const currentText = styleSheet.rules[ruleId].cssText;
-        if (normalized.replace(/(\s|\n)/g, '').replace(/(\/\*[a-zA-Z\s\-\.0-9\:\;]*\*\/)/g, '') !== currentText.replace(/\s/g, '')) {
+        if (normalized.replace(/(\s|\n|;)/g, '').replace(/(\/\*[a-zA-Z\s\-\.0-9\:\;\%]*\*\/)/g, '') !== currentText.replace(/(\s|;)/g, '')) {
           styleSheet.deleteRule(ruleId);
           styleSheet.insertRule(cssText, ruleId);
         }
