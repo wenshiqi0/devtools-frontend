@@ -4,7 +4,6 @@ const appPkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 
 const appPkgDeps = Object.keys(appPkg.dependencies);
 
 module.exports = {
-  devtool: 'eval',
   entry: {
     page: path.join(__dirname, 'tiny/devtools/preload.ts'),
   },

@@ -16,10 +16,13 @@ let container;
 // So we make it by ourselves.
 const globalClassStyleMap = {};
 const globalElementStyleMap = {};
+const globalDisableCssRule = {};
 let reactElementIds;
 let realPropsTree;
 let componentElementMapping;
 let getNativeFromReactElement;
+
+window.globalDisableCssRule = globalDisableCssRule;
 
 let cssTempState = {};
 
@@ -114,7 +117,6 @@ function handleShortHands(styles) {
 function initRange(normalise) {
   // const textArray = text.split('\n');
   // const endColumn = textArray[0].length;
-  console.log('nonono, ', normalise);
   return {
     startLine: 1,
     startColumn: 2,
@@ -140,28 +142,49 @@ function makeRange(index, inlineText) {
   }
 }
 
-function makeProperties(text) {
+function makeProperties(text, intId) {
   const ret = [];
   const shorthands = [];
   const normalise = [];
   const realText = text.split('{')[1].split('}')[0];
   const properties = realText.split(';');
   properties.forEach((element, index) => {
-    const splited = element.split(/:/);
-    const final = element.trim();
+    let final = element.replace(/\/\*/, '').replace(/\*\//, '').trim();
+    const splited = final.split(/:/);
     const name = splited.shift().trim();
     const value = splited.join(':').trim();
+    const disabled = !!(globalDisableCssRule[intId] && globalDisableCssRule[intId].get(name));
     ret.push({
       name,
       value,
-      range: makeRange(index, final),
-      text: final,
+      range: makeRange(index, disabled ? `/* ${final} */` : final),
+      text: disabled ? `/* ${final} */` : final,
+      disabled,
     });
     shorthands.push(name);
-    normalise.push(`  ${name}: ${value};`)
+    normalise.push(disabled ? `  /* ${final} */` : `  ${final}`)
   });
   normalise.pop();
   ret.pop();
+
+  if (globalDisableCssRule[intId]) {
+    let index = ret.length;
+    globalDisableCssRule[intId].forEach((value, name) => {
+      if (shorthands.indexOf(name) === -1) {
+        const final = `${name}: ${value};`;
+        shorthands.push(name);
+        normalise.push(`  /* ${final} */`);
+        ret.push({
+          name,
+          value,
+          range: makeRange(index++, `/* ${final} */`),
+          text: `/* ${final} */`,
+          disabled: true,
+        });
+      }
+    })
+  }
+
   return {
     properties: ret,
     shorthands,
@@ -169,7 +192,7 @@ function makeProperties(text) {
   };
 }
 
-function getStyle(className_) {
+function getStyle(className_, normalized) {
   const ret = [];
   const styleSheets = window.document.styleSheets;
   const styleSheetsLength = styleSheets.length;
@@ -180,7 +203,7 @@ function getStyle(className_) {
     const classesLength = classes.length;
     for (var x = 0; x < classesLength; x++) {
       if (classes[x].selectorText == className_) {
-        const { properties, shorthands, normalise } = makeProperties(classes[x].cssText);
+        const { properties, shorthands, normalise } = makeProperties(normalized || classes[x].cssText, x*100 + i);
         let j = 0;
         let styleKey;
         while (styleKey = classes[x].style[j++]) {
@@ -257,16 +280,31 @@ function createInlineStyle(nodeId: String, realDom: Element) {
   }
 }
 
-function handleNewCssText(selector, css) {
+function handleNewCssText(selector, css, id) {
   const properties = css.trim().split('\n');
   const normalise = [];
   properties.forEach(property => {
-    const arr = property.split(':');
-    const name = arr[0];
-    let value = arr[1].split(';')[0];
+    let realProperty = property.trim();
+    let disable = false;
+    if (realProperty.match(/^\/\*[a-zA-Z\s\-\.0-9\:]*\*\/$/)) {
+      disable = true;
+      realProperty = realProperty.replace(/^\/\*/, '').replace(/\*\/$/, '');
+    }
+    const arr = realProperty.split(':');
+    const name = arr[0].trim();
+    let value = arr[1].split(';')[0].trim();
     if (!value) value = 'inherit';
-    normalise.push(`${name}: ${value};`);
+    if (disable) {
+      normalise.push(`/* ${name}: ${value}; */`);
+      if (!globalDisableCssRule[id]) globalDisableCssRule[id] = new Map();
+      globalDisableCssRule[id].set(name, value);
+    } else {
+      normalise.push(`${name}: ${value};`);
+      if (globalDisableCssRule[id])
+        if (globalDisableCssRule[id].has(name)) globalDisableCssRule[id].delete(name);
+    }
   })
+
   return `${selector}\{${normalise.join(' ')}\}`;
 }
 
@@ -364,19 +402,18 @@ const messageHandler = {
       const ruleId = parseInt(intId / 100);
       const styleSheets = window.document.styleSheets;
       const styleSheet = styleSheets[sheetId];
-      const cssText = ' ' + styleSheet.rules[ruleId].cssText;
+      const cssText = styleSheet.rules[ruleId].cssText;
       const selectorText = styleSheet.rules[ruleId].selectorText;
-      const nomarlized = handleNewCssText(selectorText, texts[index]);
-
+      const normalized = handleNewCssText(selectorText, texts[index], intId);
       try {
         styleSheet.deleteRule(ruleId);
-        styleSheet.insertRule(nomarlized, ruleId);
+        styleSheet.insertRule(normalized, ruleId);
         const currentText = styleSheet.rules[ruleId].cssText;
-        if (nomarlized.replace(/(\s|\n)/g, '') !== currentText.replace(/\s/g, '')) {
+        if (normalized.replace(/(\s|\n)/g, '').replace(/(\/\*[a-zA-Z\s\-\.0-9\:\;]*\*\/)/g, '') !== currentText.replace(/\s/g, '')) {
           styleSheet.deleteRule(ruleId);
           styleSheet.insertRule(cssText, ruleId);
         }
-        const payload = getStyle(selectorText);
+        const payload = getStyle(selectorText, normalized);
         ret.push(payload);
       } catch (e) {
         console.error(e);
@@ -396,11 +433,11 @@ const messageHandler = {
       const realDom = getNativeFromReactElement(realReact);
       const computedStyle = getComputedStyle(realDom);
       const properties = [];
-      for (let i = 0;i < computedStyle.length; i++) {        
+      for (let i = 0;i < computedStyle.length; i++) {
         properties.push({
           name: computedStyle[i],
           value: computedStyle[computedStyle[i]]
-        })
+        });
       }
       sendMessage({
         method: 'computedStyleOnce',
