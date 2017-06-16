@@ -1283,6 +1283,12 @@ function setupBackend(hook) {
         getNativeFromReactElement = hook.helpers[rid].getNativeFromReactElement;
         // hook.helpers[rid].buildStylesContext(globalClassStyleMap);
         // hook.helpers[rid].buildElementStyles(globalElementStyleMap, reactElementIds);
+        sendMessage({
+            method: 'documentUpdated',
+            payload: {
+                root: root
+            }
+        });
     }
 }
 var loadCheckInterval = setInterval(function () {
