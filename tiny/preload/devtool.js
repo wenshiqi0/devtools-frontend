@@ -12,3 +12,7 @@ window.listenToHostOnce = function () {
   const ipcRenderer = require('electron').ipcRenderer;
   ipcRenderer.once.apply(ipcRenderer, arguments);
 };
+
+window.ondragover = () => false;
+window.ondragleave = () => false;
+window.ondrop = () => false;

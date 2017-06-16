@@ -4,6 +4,8 @@ const getData = require('./getData');
 const getTinyData = require('./getTinyData');
 
 let nodeId = 1;
+let reactRootElement = null;
+let elementMapping = null;
 
 function attachRenderer(bridge, rid: string, renderer: ReactRenderer): Helpers {
   const extras = {};
@@ -22,69 +24,47 @@ function attachRenderer(bridge, rid: string, renderer: ReactRenderer): Helpers {
 
   // currentComponent到react dom instance的映射
   extras.mapCurrentComponentToElement = function () {
-    const roots = renderer.Mount._instancesByReactRootID;
-    let ret = [];
+    const root = reactRootElement;
     const map = new WeakMap();
-    for (const i in roots) {
-      ret = initRoots(roots[i], ret);
+
+    if (root) {
+      makeMapping(map, root);
+      return map;
     }
-    for (const i in ret) {
-      window.reactRootElement = ret[i];
-      makeMapping(map, ret[i]);
-    }
-    return map;
+
+    return false;
   };
 
   // 这里是根据compoennt的props来生成树的
   // 由于component不含有任何的react runtime api，所以我们需要上面的映射
-  extras.rebuildTinyTree = function (ids) {
-    const roots = renderer.Mount._instancesByReactRootID;
-    let ret = [];
+  extras.rebuildTinyTree = function (ids, mapping) {
+    const root = reactRootElement;
     const tree = [];
-    for (const i in roots) {
-      ret = initRoots(roots[i], ret);
+
+    if (root) {
+      scanNode.bind({ mapping })(tree, root._currentElement.props.children, ids, [0]);
+      return tree;
     }
-    for (const i in ret) {
-      window.reactRootElement = ret[i];
-      scanNode(tree, ret[i]._currentElement.props.children, ids, [0]);
-    }
-    return tree;
+
+    return false;
   };
 
-  extras.buildStylesContext = function (styleMap) {
-    const $styles = document.styleSheets;
-    for (let i = $styles.length - 1; i > -1; --i) {
-      const rules = $styles[i].cssRules || $styles[i].rules;
-      for (let j = 0; j < rules.length; ++j) {
-        const styleObject = textToStyleObject(rules[j].cssText);
-        styleMap[styleObject.name] = {
-          style: styleObject.style,
-          cssRule: rules[j],
-        };
+  // 这个函数用于找到 page 的 dom
+  extras.initRoots = function initRoots() {
+    const roots = renderer.Mount._instancesByReactRootID;
+    nodeId = 1;
+    for (let i in roots) {
+      const root = roots[i];
+      if (root && root._hostContainerInfo && root._hostContainerInfo._node) {
+        if (root._hostContainerInfo._node.id === '__react-content') {
+          if (root._renderedComponent && root._renderedComponent._renderedComponent)
+            reactRootElement = root._renderedComponent._renderedComponent;
+        }
       }
     }
-  };
-
-  extras.buildElementStyles = function (styleMap, reactElements) {
-    Object.keys(reactElements).forEach((key) => {
-      styleMap[key] = {
-        style: contentToStyleObject(reactElements[key].data.props.style || ''),
-        element: reactElements[key].element,
-      };
-    });
-  };
+  }
 
   return extras;
-}
-
-// 这个函数用于过滤react dom tree上面的一些无用的wrapper
-function initRoots(root, ret) {
-  nodeId = 1;
-  if (root._renderedComponent._tag === 'div') {
-    return [root._renderedComponent];
-  } else {
-    return initRoots(root._renderedComponent, ret);
-  }
 }
 
 // 将object和string都normalize成数组的形势
@@ -109,23 +89,14 @@ function makeMapping(map, element) {
       makeMapping(map, child);
     });
   }
+  elementMapping = map;
 }
 
 // 遍历component的props.children，生成实际显示的dom tree
 function scanNode(tree, element, ids, guids) {
-  const data = getTinyData(element);
+  const data = getTinyData(element, elementMapping);
   if (!data) return;
   const length = guids.length;
-
-  /*
-  const node = {
-    props: data.props,
-    name: data.name,
-    guid: guids.join('-'),
-    parent: length === 0 ? null : guids.slice(0, length - 1).join('-'),
-    children: [],
-  };
-  */
 
   const node = newNode({
     name: data.name,
@@ -134,7 +105,11 @@ function scanNode(tree, element, ids, guids) {
     nodeValue: '',
   })
 
-  if (Array.isArray(element)) {
+  if (node.localName === 'root-wrapper') {
+    const realReactElement = data.real;
+    const reactRootElement = realReactElement._renderedComponent._currentElement;
+    scanNode(tree, reactRootElement, ids, guids);
+  } else if (Array.isArray(element)) {
     element.forEach((el, i) => {
       scanNode(tree, el, ids, guids.concat([i]));
     });
@@ -179,27 +154,8 @@ function setChildren(node, children) {
   })
 }
 
-function textToStyleObject(text) {
-  const styleArray = text.split('{');
-  const name = styleArray[0];
-  const stylesText = styleArray[1].replace('}', '').replace(/\s*$/, '');
-  const styleObject = contentToStyleObject(stylesText);
-  return {
-    name: name.replace(/\s*$/, ''),
-    style: styleObject,
-  };
-}
+function handleTemplateTag() {
 
-function contentToStyleObject(stylesText) {
-  if (!stylesText) return {};
-  const styleObject = {};
-  stylesText.split(';').forEach((style) => {
-    const splitStyle = style.split(':');
-    if (splitStyle.length > 1) {
-      styleObject[splitStyle[0].replace(/^\s*/, '')] = splitStyle[1].replace(/^\s*/, '');
-    }
-  });
-  return styleObject;
 }
 
 module.exports = attachRenderer;

@@ -12,7 +12,7 @@ window.ipc = ipc;
 
 let container;
 
-// We can not get styales form the context of react component.
+// We can not get styles form the context of react component.
 // So we make it by ourselves.
 const globalClassStyleMap = {};
 const globalElementStyleMap = {};
@@ -40,9 +40,12 @@ function setupBackend(hook) {
   for (const rid in hook._renderers) {
     const ids = {};
     hook.helpers[rid] = attachRenderer(hook, rid, hook._renderers[rid]);
+    hook.helpers[rid].initRoots();
     const mapping = hook.helpers[rid].mapCurrentComponentToElement();
+    const tree = hook.helpers[rid].rebuildTinyTree(ids, mapping);
     componentElementMapping = mapping;
-    const tree = hook.helpers[rid].rebuildTinyTree(ids);
+
+    if (!(tree && mapping)) return;
 
     const root = {
       attributes: [],
@@ -61,13 +64,6 @@ function setupBackend(hook) {
     getNativeFromReactElement = hook.helpers[rid].getNativeFromReactElement;
     // hook.helpers[rid].buildStylesContext(globalClassStyleMap);
     // hook.helpers[rid].buildElementStyles(globalElementStyleMap, reactElementIds);
-
-    sendMessage({
-      method: 'documentUpdated',
-      payload: {
-        root,
-      },
-    })
   }
 }
 
@@ -204,7 +200,7 @@ function getStyle(className_, normalized) {
     const classesLength = classes.length;
     for (var x = 0; x < classesLength; x++) {
       if (classes[x].selectorText == className_) {
-        const { properties, shorthands, normalise } = makeProperties(normalized || classes[x].cssText, x*100 + i);
+        const { properties, shorthands, normalise } = makeProperties(normalized || classes[x].cssText, x * 100 + i);
         let j = 0;
         let styleKey;
         while (styleKey = classes[x].style[j++]) {
@@ -219,7 +215,7 @@ function getStyle(className_, normalized) {
           });
         }
         return {
-          styleSheetId: x*100 + i,
+          styleSheetId: x * 100 + i,
           cssText: `\n${normalise.join('\n')}\n  `,
           range: initRange(normalise),
           shorthandEntries: handleShortHands(classes[x].style),
@@ -312,7 +308,7 @@ function handleNewCssText(selector, css, id) {
 const messageHandler = {
   refresh: () => {
     sendMessage({
-      method: 'refresh',
+      method: 'documentUpdated',
       payload: {
         root: realPropsTree,
       },
@@ -338,12 +334,19 @@ const messageHandler = {
     const { element, node } = reactElementIds[id] || {};
     if (element) {
       const realReact = componentElementMapping.get(element);
-      const realDom = getNativeFromReactElement(realReact);
-      if (realDom) {
-        if (!container) {
-          container = new Overlay(window);
+      if (!realReact) {
+        if (container) {
+          container.remove();
+          container = null;
         }
-        container.inspect(realDom, node.name);
+      } else {
+        const realDom = getNativeFromReactElement(realReact);
+        if (realDom) {
+          if (!container) {
+            container = new Overlay(window);
+          }
+          container.inspect(realDom, node.name);
+        }
       }
     }
   },
@@ -434,7 +437,7 @@ const messageHandler = {
       const realDom = getNativeFromReactElement(realReact);
       const computedStyle = getComputedStyle(realDom);
       const properties = [];
-      for (let i = 0;i < computedStyle.length; i++) {
+      for (let i = 0; i < computedStyle.length; i++) {
         properties.push({
           name: computedStyle[i],
           value: computedStyle[computedStyle[i]]

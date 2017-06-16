@@ -1239,7 +1239,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 var disposes = [];
 window.ipc = _electron.ipcRenderer;
 var container = void 0;
-// We can not get styales form the context of react component.
+// We can not get styles form the context of react component.
 // So we make it by ourselves.
 var globalClassStyleMap = {};
 var globalElementStyleMap = {};
@@ -1262,9 +1262,11 @@ function setupBackend(hook) {
     for (var rid in hook._renderers) {
         var ids = {};
         hook.helpers[rid] = attachRenderer(hook, rid, hook._renderers[rid]);
+        hook.helpers[rid].initRoots();
         var mapping = hook.helpers[rid].mapCurrentComponentToElement();
+        var tree = hook.helpers[rid].rebuildTinyTree(ids, mapping);
         componentElementMapping = mapping;
-        var tree = hook.helpers[rid].rebuildTinyTree(ids);
+        if (!(tree && mapping)) return;
         var root = {
             attributes: [],
             backendNodeId: 1,
@@ -1281,12 +1283,6 @@ function setupBackend(hook) {
         getNativeFromReactElement = hook.helpers[rid].getNativeFromReactElement;
         // hook.helpers[rid].buildStylesContext(globalClassStyleMap);
         // hook.helpers[rid].buildElementStyles(globalElementStyleMap, reactElementIds);
-        sendMessage({
-            method: 'documentUpdated',
-            payload: {
-                root: root
-            }
-        });
     }
 }
 var loadCheckInterval = setInterval(function () {
@@ -1517,7 +1513,7 @@ function handleNewCssText(selector, css, id) {
 var messageHandler = {
     refresh: function refresh() {
         sendMessage({
-            method: 'refresh',
+            method: 'documentUpdated',
             payload: {
                 root: realPropsTree
             }
@@ -1547,12 +1543,19 @@ var messageHandler = {
 
         if (element) {
             var realReact = componentElementMapping.get(element);
-            var realDom = getNativeFromReactElement(realReact);
-            if (realDom) {
-                if (!container) {
-                    container = new _overlay2.default(window);
+            if (!realReact) {
+                if (container) {
+                    container.remove();
+                    container = null;
                 }
-                container.inspect(realDom, node.name);
+            } else {
+                var realDom = getNativeFromReactElement(realReact);
+                if (realDom) {
+                    if (!container) {
+                        container = new _overlay2.default(window);
+                    }
+                    container.inspect(realDom, node.name);
+                }
             }
         }
     },
@@ -1736,6 +1739,8 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 var getData = __webpack_require__(62);
 var getTinyData = __webpack_require__(63);
 var nodeId = 1;
+var reactRootElement = null;
+var elementMapping = null;
 function attachRenderer(bridge, rid, renderer) {
     var extras = {};
     // only support React Dom 15+
@@ -1750,64 +1755,39 @@ function attachRenderer(bridge, rid, renderer) {
     }
     // currentComponent到react dom instance的映射
     extras.mapCurrentComponentToElement = function () {
-        var roots = renderer.Mount._instancesByReactRootID;
-        var ret = [];
+        var root = reactRootElement;
         var map = new _weakMap2.default();
-        for (var i in roots) {
-            ret = initRoots(roots[i], ret);
+        if (root) {
+            makeMapping(map, root);
+            return map;
         }
-        for (var _i in ret) {
-            window.reactRootElement = ret[_i];
-            makeMapping(map, ret[_i]);
-        }
-        return map;
+        return false;
     };
     // 这里是根据compoennt的props来生成树的
     // 由于component不含有任何的react runtime api，所以我们需要上面的映射
-    extras.rebuildTinyTree = function (ids) {
-        var roots = renderer.Mount._instancesByReactRootID;
-        var ret = [];
+    extras.rebuildTinyTree = function (ids, mapping) {
+        var root = reactRootElement;
         var tree = [];
-        for (var i in roots) {
-            ret = initRoots(roots[i], ret);
+        if (root) {
+            scanNode.bind({ mapping: mapping })(tree, root._currentElement.props.children, ids, [0]);
+            return tree;
         }
-        for (var _i2 in ret) {
-            window.reactRootElement = ret[_i2];
-            scanNode(tree, ret[_i2]._currentElement.props.children, ids, [0]);
-        }
-        return tree;
+        return false;
     };
-    extras.buildStylesContext = function (styleMap) {
-        var $styles = document.styleSheets;
-        for (var i = $styles.length - 1; i > -1; --i) {
-            var rules = $styles[i].cssRules || $styles[i].rules;
-            for (var j = 0; j < rules.length; ++j) {
-                var styleObject = textToStyleObject(rules[j].cssText);
-                styleMap[styleObject.name] = {
-                    style: styleObject.style,
-                    cssRule: rules[j]
-                };
+    // 这个函数用于找到 page 的 dom
+    extras.initRoots = function initRoots() {
+        var roots = renderer.Mount._instancesByReactRootID;
+        nodeId = 1;
+        for (var i in roots) {
+            var root = roots[i];
+            if (root && root._hostContainerInfo && root._hostContainerInfo._node) {
+                if (root._hostContainerInfo._node.id === '__react-content') {
+                    if (root._renderedComponent && root._renderedComponent._renderedComponent) reactRootElement = root._renderedComponent._renderedComponent;
+                }
             }
         }
     };
-    extras.buildElementStyles = function (styleMap, reactElements) {
-        (0, _keys2.default)(reactElements).forEach(function (key) {
-            styleMap[key] = {
-                style: contentToStyleObject(reactElements[key].data.props.style || ''),
-                element: reactElements[key].element
-            };
-        });
-    };
     return extras;
-}
-// 这个函数用于过滤react dom tree上面的一些无用的wrapper
-function initRoots(root, ret) {
-    nodeId = 1;
-    if (root._renderedComponent._tag === 'div') {
-        return [root._renderedComponent];
-    } else {
-        return initRoots(root._renderedComponent, ret);
-    }
 }
 // 将object和string都normalize成数组的形势
 var normalize = function normalize(children) {
@@ -1830,28 +1810,24 @@ function makeMapping(map, element) {
             makeMapping(map, child);
         });
     }
+    elementMapping = map;
 }
 // 遍历component的props.children，生成实际显示的dom tree
 function scanNode(tree, element, ids, guids) {
-    var data = getTinyData(element);
+    var data = getTinyData(element, elementMapping);
     if (!data) return;
     var length = guids.length;
-    /*
-    const node = {
-      props: data.props,
-      name: data.name,
-      guid: guids.join('-'),
-      parent: length === 0 ? null : guids.slice(0, length - 1).join('-'),
-      children: [],
-    };
-    */
     var node = newNode({
         name: data.name,
         props: data.props,
         nodeType: 1,
         nodeValue: ''
     });
-    if (Array.isArray(element)) {
+    if (node.localName === 'root-wrapper') {
+        var realReactElement = data.real;
+        var _reactRootElement = realReactElement._renderedComponent._currentElement;
+        scanNode(tree, _reactRootElement, ids, guids);
+    } else if (Array.isArray(element)) {
         element.forEach(function (el, i) {
             scanNode(tree, el, ids, guids.concat([i]));
         });
@@ -1896,27 +1872,7 @@ function setChildren(node, children) {
         childNodeCount: children.length
     });
 }
-function textToStyleObject(text) {
-    var styleArray = text.split('{');
-    var name = styleArray[0];
-    var stylesText = styleArray[1].replace('}', '').replace(/\s*$/, '');
-    var styleObject = contentToStyleObject(stylesText);
-    return {
-        name: name.replace(/\s*$/, ''),
-        style: styleObject
-    };
-}
-function contentToStyleObject(stylesText) {
-    if (!stylesText) return {};
-    var styleObject = {};
-    stylesText.split(';').forEach(function (style) {
-        var splitStyle = style.split(':');
-        if (splitStyle.length > 1) {
-            styleObject[splitStyle[0].replace(/^\s*/, '')] = splitStyle[1].replace(/^\s*/, '');
-        }
-    });
-    return styleObject;
-}
+function handleTemplateTag() {}
 module.exports = attachRenderer;
 
 /***/ }),
@@ -2158,20 +2114,30 @@ var normalize = function normalize(children) {
     return [children];
 };
 
-exports.default = function (element) {
+exports.default = function (element, mapping) {
     var props = {};
     if (!element || !element.props) return element;
     var name = element.props.$tag;
+    var realReactElement = mapping.get(element);
     var children = normalize(element.props.children);
     (0, _keys2.default)(element.props).forEach(function (prop) {
         if (!(typeof element.props[prop] === 'function' || prop === 'children' || prop === '$tag')) {
             props[prop] = element.props[prop];
         }
     });
+    if (!name) {
+        if (realReactElement && realReactElement._renderedComponent && realReactElement._renderedComponent._renderedComponent) {
+            var _currentElement = realReactElement._renderedComponent._renderedComponent._currentElement;
+            if (_currentElement.ref === 'root') {
+                name = 'root-wrapper';
+            }
+        }
+    }
     return {
         name: name,
         props: props,
-        children: children
+        children: children,
+        real: realReactElement
     };
 };
 
