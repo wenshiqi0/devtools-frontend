@@ -52,8 +52,6 @@ Ant.TinyModel = class extends SDK.DOMModel {
   }
 
   requestDocumentPromise() {
-    if (this._document)
-      return Promise.resolve(this._document);
     if (this._pendingDocumentRequestPromise)
       return this._pendingDocumentRequestPromise;
     this._pendingDocumentRequestPromise = Ant.makeProxyPromiseOnce('getDocumentOnce', {},

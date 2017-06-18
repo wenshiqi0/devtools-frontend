@@ -1303,6 +1303,12 @@ var checkTinyAndReact = function checkTinyAndReact() {
         clearInterval(loadCheckInterval);
         try {
             setupBackend(globalHook);
+            var config = { attributes: true, subtree: true, characterData: true, childList: true };
+            var observer = new MutationObserver(function () {
+                setupBackend(globalHook);
+            });
+            var target = document.getElementById('__react-content');
+            observer.observe(target, config);
             loadCheckInterval = null;
         } catch (e) {
             // In this time actually react is not ready, so we catch the error and restart the interval.
