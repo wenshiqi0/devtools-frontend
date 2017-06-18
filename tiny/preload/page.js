@@ -1268,15 +1268,17 @@ function setupBackend(hook) {
         componentElementMapping = mapping;
         if (!(tree && mapping)) return;
         var root = {
-            attributes: [],
-            backendNodeId: 1,
-            nodeName: 'document'.toUpperCase(),
+            backendNodeId: 2,
+            nodeName: '#document',
             localName: 'document'.toLowerCase(),
+            documentURL: 'tiny-app',
+            baseURL: 'tiny-app',
             nodeType: 9,
-            nodeId: 0,
+            nodeId: 1,
             nodeValue: '',
             children: tree,
-            childNodeCount: tree.length
+            childNodeCount: tree.length,
+            xmlVersion: ''
         };
         reactElementIds = ids;
         realPropsTree = root;
@@ -1538,6 +1540,14 @@ var messageHandler = {
             }
         });
     },
+    getDocumentOnce: function getDocumentOnce() {
+        sendMessage({
+            method: 'getDocumentOnce',
+            payload: {
+                root: realPropsTree
+            }
+        });
+    },
     highlight: function highlight(_ref2) {
         var nodeId = _ref2.nodeId;
 
@@ -1744,7 +1754,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 var getData = __webpack_require__(62);
 var getTinyData = __webpack_require__(63);
-var nodeId = 1;
+var nodeId = 3;
 var reactRootElement = null;
 var elementMapping = null;
 function attachRenderer(bridge, rid, renderer) {
@@ -1774,6 +1784,16 @@ function attachRenderer(bridge, rid, renderer) {
     extras.rebuildTinyTree = function (ids, mapping) {
         var root = reactRootElement;
         var tree = [];
+        tree.push({
+            backendNodeId: 3,
+            localName: '',
+            nodeId: 2,
+            nodeName: 'axml',
+            nodeType: 10,
+            nodeValue: '',
+            publicId: '',
+            systemId: ''
+        });
         if (root) {
             scanNode.bind({ mapping: mapping })(tree, root._currentElement.props.children, ids, [0]);
             return tree;
@@ -1783,7 +1803,7 @@ function attachRenderer(bridge, rid, renderer) {
     // 这个函数用于找到 page 的 dom
     extras.initRoots = function initRoots() {
         var roots = renderer.Mount._instancesByReactRootID;
-        nodeId = 1;
+        nodeId = 3;
         for (var i in roots) {
             var root = roots[i];
             if (root && root._hostContainerInfo && root._hostContainerInfo._node) {

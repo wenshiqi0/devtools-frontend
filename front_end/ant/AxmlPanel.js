@@ -8,7 +8,7 @@ Ant.AxmlPanel = class extends Elements.ElementsPanel {
 
     SDK.targetManager.observeModels(Ant.TinyModel, this);
     SDK.targetManager.addModelListener(
-      Ant.TinyModel, Ant.TinyModel.Events.DocumentUpdated, this._documentUpdatedEvent, this);
+      Ant.TinyModel, SDK.DOMModel.Events.DocumentUpdated, this._documentUpdatedEvent, this);
   }
 };
 

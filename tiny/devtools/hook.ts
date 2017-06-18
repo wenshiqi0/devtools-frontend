@@ -48,15 +48,17 @@ function setupBackend(hook) {
     if (!(tree && mapping)) return;
 
     const root = {
-      attributes: [],
-      backendNodeId: 1,
-      nodeName: 'document'.toUpperCase(),
+      backendNodeId: 2,
+      nodeName: '#document',
       localName: 'document'.toLowerCase(),
+      documentURL: 'tiny-app',
+      baseURL: 'tiny-app',
       nodeType: 9,
-      nodeId: 0,
+      nodeId: 1,
       nodeValue: '',
       children: tree,
       childNodeCount: tree.length,
+      xmlVersion: '',
     };
 
     reactElementIds = ids;
@@ -335,6 +337,14 @@ const messageHandler = {
           root: realPropsTree,
         },
       })
+  },
+  getDocumentOnce: () => {
+    sendMessage({
+      method: 'getDocumentOnce',
+      payload: {
+        root: realPropsTree,
+      },
+    })
   },
   highlight: ({ nodeId }) => {
     const id = parseInt(nodeId);

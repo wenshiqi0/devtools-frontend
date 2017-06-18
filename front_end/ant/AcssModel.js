@@ -1,4 +1,4 @@
-function makeProxyPromiseOnce(method, payload, callback) {
+Ant.makeProxyPromiseOnce = (method, payload, callback) => {
   return new Promise((resolve, reject) => {
     window.sendToHost('render', {
       method,
@@ -9,7 +9,9 @@ function makeProxyPromiseOnce(method, payload, callback) {
       resolve(callback(payload));
     });
   });
-}
+};
+
+const makeProxyPromiseOnce = Ant.makeProxyPromiseOnce;
 
 Ant.AcssModel = class extends SDK.CSSModel {
   constructor(target) {

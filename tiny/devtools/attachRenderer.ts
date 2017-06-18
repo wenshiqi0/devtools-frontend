@@ -3,7 +3,7 @@ import { ReactRenderer, Helpers } from './types';
 const getData = require('./getData');
 const getTinyData = require('./getTinyData');
 
-let nodeId = 1;
+let nodeId = 3;
 let reactRootElement = null;
 let elementMapping = null;
 
@@ -41,6 +41,17 @@ function attachRenderer(bridge, rid: string, renderer: ReactRenderer): Helpers {
     const root = reactRootElement;
     const tree = [];
 
+    tree.push({
+      backendNodeId: 3,
+      localName: '',
+      nodeId: 2,
+      nodeName: 'axml', 
+      nodeType: 10,
+      nodeValue: '',
+      publicId: '',
+      systemId: '',
+    });
+
     if (root) {
       scanNode.bind({ mapping })(tree, root._currentElement.props.children, ids, [0]);
       return tree;
@@ -52,7 +63,7 @@ function attachRenderer(bridge, rid: string, renderer: ReactRenderer): Helpers {
   // 这个函数用于找到 page 的 dom
   extras.initRoots = function initRoots() {
     const roots = renderer.Mount._instancesByReactRootID;
-    nodeId = 1;
+    nodeId = 3;
     for (let i in roots) {
       const root = roots[i];
       if (root && root._hostContainerInfo && root._hostContainerInfo._node) {
