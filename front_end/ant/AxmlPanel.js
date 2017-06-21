@@ -10,6 +10,28 @@ Ant.AxmlPanel = class extends Elements.ElementsPanel {
     SDK.targetManager.addModelListener(
       Ant.TinyModel, SDK.DOMModel.Events.DocumentUpdated, this._documentUpdatedEvent, this);
   }
+
+  modelAdded(domModel) {
+    if (this._treeOutlines[0]) return;
+
+    var treeOutline = new Elements.ElementsTreeOutline(domModel, true, true);
+    treeOutline.setWordWrap(Common.moduleSetting('domWordWrap').get());
+    treeOutline.wireToDOMModel();
+    treeOutline.addEventListener(
+        Elements.ElementsTreeOutline.Events.SelectedNodeChanged, this._selectedNodeChanged, this);
+    treeOutline.addEventListener(
+        Elements.ElementsTreeOutline.Events.ElementsTreeUpdated, this._updateBreadcrumbIfNeeded, this);
+    new Elements.ElementsTreeElementHighlighter(treeOutline);
+    this._treeOutlines.push(treeOutline);
+    if (domModel.target().parentTarget()) {
+      this._treeOutlineHeaders.set(treeOutline, createElementWithClass('div', 'elements-tree-header'));
+      this._targetNameChanged(domModel.target());
+    }
+
+    // Perform attach if necessary.
+    if (this.isShowing())
+      this.wasShown();
+  }
 };
 
 /**

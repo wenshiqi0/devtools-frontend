@@ -32,13 +32,6 @@ Ant.TinyModel = class extends SDK.DOMModel {
   }
 
   _setDocument(payload) {
-    // FIX ME: do not use the dom way to solve this problem.
-    const axmlElement = document.getElementById('elements-content');
-    window.axmlElement = axmlElement;
-    if (axmlElement.hasChildNodes()) {
-      if (axmlElement.childElementCount === 2)
-        axmlElement.removeChild(axmlElement.childNodes[0]);
-    }
     this._idToDOMNode = {};
     if (payload && 'nodeId' in payload)
       this._document = new SDK.DOMDocument(this, payload);
@@ -52,9 +45,7 @@ Ant.TinyModel = class extends SDK.DOMModel {
   }
 
   requestDocumentPromise() {
-    if (this._pendingDocumentRequestPromise)
-      return this._pendingDocumentRequestPromise;
-    this._pendingDocumentRequestPromise = Ant.makeProxyPromiseOnce('getDocumentOnce', {},
+    return Ant.makeProxyPromiseOnce('getDocumentOnce', {},
       payload => {
         const root = payload.root;
         if (root)
@@ -65,7 +56,6 @@ Ant.TinyModel = class extends SDK.DOMModel {
         return this._document;
       }
     );
-    return this._pendingDocumentRequestPromise;
   }
 };
 
