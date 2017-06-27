@@ -1303,13 +1303,8 @@ var checkTinyAndReact = function checkTinyAndReact() {
         clearInterval(loadCheckInterval);
         try {
             setupBackend(globalHook);
-            var config = { attributes: true, subtree: true, characterData: true, childList: true };
-            var observer = new MutationObserver(function () {
-                setupBackend(globalHook);
-            });
-            var target = document.getElementById('__react-content');
-            observer.observe(target, config);
             loadCheckInterval = null;
+            sendMessage({ method: 'switchTarget' });
         } catch (e) {
             // In this time actually react is not ready, so we catch the error and restart the interval.
             console.log(e);
@@ -1524,17 +1519,38 @@ function handleNewCssText(selector, css, id) {
     });
     return selector + '{' + normalise.join(' ') + '}';
 }
+function fetchRemoteUrl(callback) {
+    var port = 9224;
+    var request = new Request('http://127.0.0.1:' + port + '/json/list');
+    var path = window.$page.getPagePath();
+    fetch(request).then(function (res) {
+        return res.json().then(function (body) {
+            console.log(body);
+            var remoteInfo = body.find(function (item) {
+                return item.url.indexOf(path) > -1;
+            });
+            callback({ path: path, ws: remoteInfo.webSocketDebuggerUrl });
+        }).catch(function (e) {
+            console.error(e);
+            callback({});
+        });
+    });
+}
 var messageHandler = {
-    refresh: function refresh() {
-        sendMessage({
-            method: 'documentUpdated',
-            payload: {
-                root: realPropsTree
-            }
+    initOnce: function initOnce() {
+        fetchRemoteUrl(function (payload) {
+            console.log(payload);
+            sendMessage({
+                method: 'initOnce',
+                payload: payload
+            });
         });
     },
+    refresh: function refresh() {
+        sendMessage({ method: 'switchTarget' });
+    },
     enable: function enable() {
-        // console.log('tiny enable');
+        console.log('tiny enable');
         // enable tiny
         checkTinyAndReact();
     },

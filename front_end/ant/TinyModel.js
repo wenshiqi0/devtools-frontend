@@ -1,26 +1,21 @@
 Ant.TinyModel = class extends SDK.DOMModel {
   constructor(target) {
     super(target);
-
     const dispatcher = new Ant.TinyDispatcher(this);
     this._tinyConnection = new Ant.TinyConnection(target, dispatcher);
-
-    this._agent = target.tinyAgent();
-    this._domAgent = target.domAgent();
-
+    // this._agent = target.tinyAgent();
+    target.registerDOMDispatcher(dispatcher);
+    this._agent = target.domAgent();
     this._idToDOMNode = {};
-
     this._document = null;
-
-    this._attributeLoadNodeIds = {};
-
-    this._runtimeModel = /** @type {!SDK.RuntimeModel} */ (target.model(SDK.RuntimeModel));
-
-    this._agent.enable();
+    this._attributeLoadNodeIds = new Set();
+    this._runtimeModel = /** @type {!SDK.RuntimeModel} */ (Ant.targetManager.getWorkerTarget().model(SDK.RuntimeModel));
   }
 
   cssModel() {
-    return /** @type {!Ant.AcssModel} */ (this.target().model(Ant.AcssModel));
+    if (!this._cssModel)
+      this._cssModel = new SDK.CSSModel(this._target, this);
+    return this._cssModel;
   }
 
   requestDocument(node) {
@@ -28,7 +23,7 @@ Ant.TinyModel = class extends SDK.DOMModel {
   }
 
   markUndoableState() {
-    this._domAgent.markUndoableState();
+    this._agent.markUndoableState();
   }
 
   _setDocument(payload) {
@@ -38,24 +33,6 @@ Ant.TinyModel = class extends SDK.DOMModel {
     else
       this._document = null;
     this.dispatchEventToListeners(SDK.DOMModel.Events.DocumentUpdated, this);
-  }
-
-  _documentUpdated() {
-    this._setDocument(null);
-  }
-
-  requestDocumentPromise() {
-    return Ant.makeProxyPromiseOnce('getDocumentOnce', {},
-      payload => {
-        const root = payload.root;
-        if (root)
-          this._setDocument(root);
-        delete this._pendingDocumentRequestPromise;
-        if (!this._document)
-          console.error('No document');
-        return this._document;
-      }
-    );
   }
 };
 
@@ -83,4 +60,4 @@ Ant.TinyDispatcher = class extends SDK.DOMDispatcher {
   }
 };
 
-SDK.SDKModel.register(Ant.TinyModel, SDK.Target.Capability.DOM, true);
+// SDK.SDKModel.register(Ant.TinyModel, SDK.Target.Capability.DOM, false);

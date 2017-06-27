@@ -339,10 +339,6 @@ Protocol.TargetBase = class {
         return;
       }
 
-      if (messageObject.result && messageObject.result.root) {
-        console.log(messageObject);
-      }
-
       var timingLabel = 'time-stats: ' + callback.methodName;
       if (Protocol.InspectorBackend.Options.dumpInspectorTimeStats)
         console.time(timingLabel);

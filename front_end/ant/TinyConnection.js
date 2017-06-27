@@ -15,7 +15,9 @@ Ant.TinyConnection = class {
     });
 
     const extraMessageHandler = {
-
+      switchTarget: () => {
+        Ant.targetManager.switchTarget();
+      },
     };
   }
 };

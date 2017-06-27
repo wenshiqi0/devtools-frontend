@@ -87,15 +87,9 @@ const checkTinyAndReact = () => {
     clearInterval(loadCheckInterval);
     try {
       setupBackend(globalHook);
-
-      const config = { attributes: true, subtree: true, characterData: true, childList: true };
-      const observer = new MutationObserver(() => {
-        setupBackend(globalHook);
-      });
-      const target = document.getElementById('__react-content');
-      observer.observe(target, config);
-
       loadCheckInterval = null;
+
+      sendMessage({ method: 'switchTarget' });
     } catch (e) {
       // In this time actually react is not ready, so we catch the error and restart the interval.
       console.log(e);
@@ -322,17 +316,38 @@ function handleNewCssText(selector, css, id) {
   return `${selector}\{${normalise.join(' ')}\}`;
 }
 
+function fetchRemoteUrl(callback) {
+  const port = 9224;
+  const request = new Request(`http://127.0.0.1:${port}/json/list`);
+  const path = window.$page.getPagePath();
+  fetch(request)
+    .then(res => res.json()
+    .then(body => {
+      console.log(body);
+      const remoteInfo = body.find(item => item.url.indexOf(path) > -1);
+      callback({ path, ws: remoteInfo.webSocketDebuggerUrl });
+    })
+    .catch(e => {
+      console.error(e);
+      callback({});
+    })
+}
+
 const messageHandler = {
+  initOnce: () => {
+    fetchRemoteUrl((payload) => {
+      console.log(payload);
+      sendMessage({
+        method: 'initOnce',
+        payload,
+      });
+    })
+  },
   refresh: () => {
-    sendMessage({
-      method: 'documentUpdated',
-      payload: {
-        root: realPropsTree,
-      },
-    });
+    sendMessage({ method: 'switchTarget' });
   },
   enable: () => {
-    // console.log('tiny enable');
+    console.log('tiny enable');
     // enable tiny
     checkTinyAndReact();
   },

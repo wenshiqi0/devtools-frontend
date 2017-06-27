@@ -35,9 +35,9 @@ SDK.CSSModel = class extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} target
    */
-  constructor(target) {
+  constructor(target, model) {
     super(target);
-    this._domModel = /** @type {!SDK.DOMModel} */ (target.model(SDK.DOMModel));
+    this._domModel = /** @type {!SDK.DOMModel} */ model ? model : (target.model(SDK.DOMModel));
     /** @type {!SDK.SourceMapManager<!SDK.CSSStyleSheetHeader>} */
     this._sourceMapManager = new SDK.SourceMapManager(target);
     this._agent = target.cssAgent();
@@ -367,6 +367,7 @@ SDK.CSSModel = class extends SDK.SDKModel {
      */
     function callback(
         error, inlinePayload, attributesPayload, matchedPayload, pseudoPayload, inheritedPayload, animationsPayload) {
+      console.log(error, matchedPayload, inlinePayload);
       if (error)
         return null;
 

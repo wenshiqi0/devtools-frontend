@@ -32,7 +32,6 @@
         },
         {
             "type": "view",
-            "location": "elements-sidebar",
             "id": "elements.domBreakpoints",
             "title": "DOM Breakpoints",
             "order": 6,
