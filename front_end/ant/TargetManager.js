@@ -25,7 +25,8 @@ Ant.TargetManager = class extends Common.Object {
       new SDK.WebSocketConnection(ws, this._webSocketConnectionLostCallback.bind(this, path), params);
 
     const target = SDK.targetManager.createTarget(path, `tinyPage(${path})`,
-      SDK.Target.Capability.DOM | SDK.Target.Capability.Target, createMainConnection.bind(this, ws), null);
+      SDK.Target.Capability.DOM | SDK.Target.Capability.Target | SDK.Target.Capability.Browser | SDK.Target.Capability.DeviceEmulation,
+      createMainConnection.bind(this, ws), null);
 
     this.enableEmulation(target);
 
@@ -49,6 +50,14 @@ Ant.TargetManager = class extends Common.Object {
     const { target, model } = this._targets.get(path);
     this._currentTarget = target;
     this._currentModel = model;
+  }
+
+  getCurrentTarget() {
+    return this._currentTarget;
+  }
+
+  getCurrentModel() {
+    return this._currentModel;
   }
 
   switchTarget() {

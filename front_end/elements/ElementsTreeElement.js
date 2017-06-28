@@ -492,21 +492,30 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
   populateNodeContextMenu(contextMenu) {
     // Add free-form node-related actions.
     var isEditable = this.hasEditableNode();
-    if (isEditable && !this._editing)
-      contextMenu.appendItem(Common.UIString('Edit as HTML'), this._editAsHTML.bind(this));
-    var isShadowRoot = this._node.isShadowRoot();
+
+    // ANT-IDE
+    // no need for this, disbaled.
+    // if (isEditable && !this._editing)
+      // contextMenu.appendItem(Common.UIString('Edit as HTML'), this._editAsHTML.bind(this));
+    // var isShadowRoot = this._node.isShadowRoot();
 
     // Place it here so that all "Copy"-ing items stick together.
-    var copyMenu = contextMenu.appendSubMenuItem(Common.UIString('Copy'));
-    var createShortcut = UI.KeyboardShortcut.shortcutToString;
-    var modifier = UI.KeyboardShortcut.Modifiers.CtrlOrMeta;
+
+    // ANT-IDE
+    // hosted mode can not use copy
+    // var copyMenu = contextMenu.appendSubMenuItem(Common.UIString('Copy'));
+    // var createShortcut = UI.KeyboardShortcut.shortcutToString;
+    // var modifier = UI.KeyboardShortcut.Modifiers.CtrlOrMeta;
     var treeOutline = this.treeOutline;
     var menuItem;
+
+    /*
     if (!isShadowRoot) {
       menuItem = copyMenu.appendItem(
           Common.UIString('Copy outerHTML'), treeOutline.performCopyOrCut.bind(treeOutline, false, this._node));
       menuItem.setShortcut(createShortcut('V', modifier));
     }
+
     if (this._node.nodeType() === Node.ELEMENT_NODE)
       copyMenu.appendItem(Common.UIString.capitalize('Copy selector'), this._copyCSSPath.bind(this));
     if (!isShadowRoot)
@@ -524,6 +533,7 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
           !treeOutline.canPaste(this._node));
       menuItem.setShortcut(createShortcut('V', modifier));
     }
+    */
 
     contextMenu.appendSeparator();
     menuItem = contextMenu.appendCheckboxItem(

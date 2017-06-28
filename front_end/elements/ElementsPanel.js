@@ -968,8 +968,10 @@ Elements.ElementsPanel.ContextMenuProvider = class {
     // Skip adding "Reveal..." menu item for our own tree outline.
     if (Elements.ElementsPanel.instance().element.isAncestor(/** @type {!Node} */ (event.target)))
       return;
-    var commandCallback = Common.Revealer.reveal.bind(Common.Revealer, object);
-    contextMenu.appendItem(Common.UIString.capitalize('Reveal in Elements ^panel'), commandCallback);
+    // ANT-IDE
+    // no need
+    // var commandCallback = Common.Revealer.reveal.bind(Common.Revealer, object);
+    // contextMenu.appendItem(Common.UIString.capitalize('Reveal in Elements ^panel'), commandCallback);
   }
 };
 

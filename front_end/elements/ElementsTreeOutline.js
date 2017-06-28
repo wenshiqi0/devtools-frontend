@@ -614,18 +614,11 @@ Elements.ElementsTreeOutline = class extends UI.TreeOutline {
 
   _onmousemove(event) {
     var element = this._treeElementFromEvent(event);
-    var node = element.node();
 
     if (element && this._previousHoveredElement === element)
       return;
 
     this.setHoverEffect(element);
-
-    // ANT-IDE: so this is a mouse move event from tiny panel
-    if (node._domModel instanceof Ant.TinyModel) {
-      window.sendToHost('render', { method: 'highlight', payload: { nodeId: node.id } });
-      return;
-    }
 
     if (element instanceof Elements.ElementsTreeElement) {
       this._domModel.overlayModel().highlightDOMNodeWithConfig(
@@ -641,9 +634,6 @@ Elements.ElementsTreeOutline = class extends UI.TreeOutline {
 
   _onmouseleave(event) {
     this.setHoverEffect(null);
-
-    // ANT-IDE: unhover, remove the overlay container.
-    window.sendToHost('render', { method: 'unhighlight' });
     SDK.OverlayModel.hideDOMNodeHighlight();
   }
 
