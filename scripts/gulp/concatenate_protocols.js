@@ -10,7 +10,7 @@ var utils = require('../utils');
 
 var tinyJson = require('./tiny.json');
 var acssJson = require('./acss.json');
-var browser = require('../../tiny/browser_protocol.json');
+var browser = require('./browser_protocol.json');
 
 module.exports = function main(protocols, output) {
   var domains = [];
@@ -20,7 +20,7 @@ module.exports = function main(protocols, output) {
     var protocol = protocols[i];
     if (!utils.isFile(protocol))
       throw new Error(`Cannot find ${protocol}`);
-    // index i is for browser_protocol
+    // index 0 is for browser_protocol
     if (i === 0)
       json = browser;
     else
