@@ -421,16 +421,21 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
    * @return {boolean}
    */
   _startEditingTarget(eventTarget) {
+    // ANT-IDE
+    // disable all tree edit
+    /*
     if (this.treeOutline.selectedDOMNode() !== this._node)
       return false;
 
     if (this._node.nodeType() !== Node.ELEMENT_NODE && this._node.nodeType() !== Node.TEXT_NODE)
       return false;
+    */
 
     var textNode = eventTarget.enclosingNodeOrSelfWithClass('webkit-html-text-node');
     if (textNode)
       return this._startEditingTextNode(textNode);
 
+    /*
     var attribute = eventTarget.enclosingNodeOrSelfWithClass('webkit-html-attribute');
     if (attribute)
       return this._startEditingAttribute(attribute, eventTarget);
@@ -442,7 +447,7 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
     var newAttribute = eventTarget.enclosingNodeOrSelfWithClass('add-attribute');
     if (newAttribute)
       return this._addNewAttribute();
-
+    */
     return false;
   }
 

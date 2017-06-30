@@ -46,24 +46,3 @@ export default function installGlobalReactHook() {
   window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeWeakMap = WeakMap;
   window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeSet = Set;
 }
-
-/*
-var saveNativeValues = `
-window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeObjectCreate = Object.create;
-window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeMap = Map;
-window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeWeakMap = WeakMap;
-window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeSet = Set;
-`;
-
-var js = (
-  ';(' + installGlobalReactHook.toString() + '(window))' +
-  saveNativeValues
-);
-
-// This script runs before the <head> element is created, so we add the script
-// to <html> instead.
-var script = document.createElement('script');
-script.textContent = js;
-document.documentElement.appendChild(script);
-script.parentNode.removeChild(script);
-*/

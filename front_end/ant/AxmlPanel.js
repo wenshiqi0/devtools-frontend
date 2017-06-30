@@ -30,7 +30,7 @@ Ant.AxmlPanel = class extends Elements.ElementsPanel {
     if (tinyModel) this.modelRemoved(tinyModel);
     tinyModel = domModel;
 
-    var treeOutline = new Elements.ElementsTreeOutline(domModel, true, true);
+    var treeOutline = new Ant.ElementsTreeOutline(domModel, true, true);
     treeOutline.setWordWrap(Common.moduleSetting('domWordWrap').get());
     treeOutline.wireToDOMModel();
     treeOutline.addEventListener(
