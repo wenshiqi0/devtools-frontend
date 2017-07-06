@@ -51,6 +51,7 @@ Ant.TinyModel = class extends SDK.DOMModel {
 
   _childNodeInserted(parentId, prevId, payload) {
     var parent = this._idToDOMNode[parentId];
+    if (!parent || (!payload.localName && payload.nodeName === '#comment')) return;
     var prev = this._idToDOMNode[prevId];
     var node = parent._insertChild(prev, payload);
     if (node) {
@@ -58,6 +59,46 @@ Ant.TinyModel = class extends SDK.DOMModel {
       this.dispatchEventToListeners(SDK.DOMModel.Events.NodeInserted, node);
       this._scheduleMutationEvent(node);
     }
+  }
+
+  _loadNodeAttributes() {
+    delete this._loadNodeAttributesTimeout;
+    /*
+    for (let nodeId of this._attributeLoadNodeIds) {
+      this._agent.getAttributes(nodeId).then(attributes => {
+        if (!attributes) {
+          // We are calling _loadNodeAttributes asynchronously, it is ok if node is not found.
+          return;
+        }
+        var node = this._idToDOMNode[nodeId];
+        if (!node)
+          return;
+        if (node._setAttributesPayload(attributes)) {
+          this.dispatchEventToListeners(SDK.DOMModel.Events.AttrModified, {node: node, name: 'style'});
+          this._scheduleMutationEvent(node);
+        }
+      });
+    }
+    */
+    this._attributeLoadNodeIds.clear();
+  }
+
+  attributeRemoved(nodeId, name) {
+    // this._domModel._attributeRemoved(nodeId, name);
+  }
+
+  /**
+   * @param {!Protocol.DOM.NodeId} parentId
+   * @param {!Protocol.DOM.NodeId} nodeId
+   */
+  _childNodeRemoved(parentId, nodeId) {
+    var parent = this._idToDOMNode[parentId];
+    var node = this._idToDOMNode[nodeId];
+    if (!node) return;
+    parent._removeChild(node);
+    this._unbind(node);
+    this.dispatchEventToListeners(SDK.DOMModel.Events.NodeRemoved, {node: node, parent: parent});
+    this._scheduleMutationEvent(node);
   }
 
   getChildNodes(callback) {
@@ -98,6 +139,28 @@ Ant.TinyModel = class extends SDK.DOMModel {
 
   nodeForId(nodeId) {
     return this._idToDOMNode[nodeId] || null;
+  }
+
+  propsModified(nodeId, props) {
+    const node = this._idToDOMNode[nodeId];
+
+    if (!node)
+      return;
+
+    Ant.combinedProps(node, props, this);
+    this._scheduleMutationEvent(node);
+  }
+
+  _attributeModified(nodeId, name, value) {
+    var node = this._idToDOMNode[nodeId];
+    if (name === 'class' || name === 'className') {
+      name = 'className';
+      value.replace(/a-[a-z]*/, '').trim();
+      if (!value)
+        return;
+    }
+    if (!node)
+      return;
   }
 };
 
@@ -783,6 +846,12 @@ Ant.DOMNode = class {
    * @param {string} value
    */
   _addAttribute(name, value) {
+    if (name === 'class' || name === 'className') {
+      name = 'className';
+      value = value.replace(/a-[a-z]*/, '').trim();
+      if (!value)
+        return;
+    }
     var attr = { name: name, value: value, _node: this };
     this._attributesMap[name] = attr;
     this._attributes.push(attr);
@@ -793,6 +862,12 @@ Ant.DOMNode = class {
    * @param {string} value
    */
   _setAttribute(name, value) {
+    if (name === 'class' || name === 'className') {
+      name = 'className';
+      value.replace(/a-[a-z]*/, '').trim();
+      if (!value)
+        return;
+    }
     var attr = this._attributesMap[name];
     if (attr)
       attr.value = value;
@@ -984,24 +1059,6 @@ Ant.DOMNode = class {
       node = null;
     return node;
   }
-
-  /**
-   * @param {!Protocol.DOM.NodeId} nodeId
-   * @param {string} name
-   * @param {string} value
-   */
-  _attributeModified(nodeId, name, value) {
-    var node = this._idToDOMNode[nodeId];
-    if (!node)
-      return;
-
-    // FIX ME: attribute modified combine.
-    console.log(node, name, value);
-
-    node._setAttribute(name, value);
-    this.dispatchEventToListeners(SDK.DOMModel.Events.AttrModified, { node: node, name: name });
-    this._scheduleMutationEvent(node);
-  }
 };
 
 Ant.DOMDocument = class extends Ant.DOMNode {
@@ -1049,7 +1106,9 @@ Ant.replaceTagNameAndAttr = (backDom, data) => {
   const attributes = [];
   backDom.localName = data.name;
   backDom.nodeName = data.name.toUpperCase();
+  const filterPropKey = new Set(['$tag', '$appx', 'children', '_textChildren']);
   Object.keys(data.props).forEach(key => {
+    if (filterPropKey.has(key)) return;
     const value = data.props[key];
     attributes.push(key);
     if (typeof value === 'string') {
@@ -1061,11 +1120,32 @@ Ant.replaceTagNameAndAttr = (backDom, data) => {
       });
       attributes.push(localValue);
     } else {
-      attributes.push(`{{${String(value)}}}`);
+      attributes.push(`${String(value)}`);
     }
   });
   backDom.attributes = attributes;
   return backDom;
+};
+
+Ant.combinedProps = (node, props, model) => {
+  const filterPropKey = new Set(['$tag', '$appx', 'children', '_textChildren']);
+  Object.keys(props).forEach(key => {
+    if (filterPropKey.has(key)) return;
+    const value = props[key];
+    if (!value && value !== false && value !== 'none') return;
+    if (typeof value === 'string') {
+      node._setAttribute(key, value);
+    } else if (typeof value === 'object') {
+      let localValue = '';
+      Object.keys(value).forEach(property => {
+        localValue += `${property}: ${value[property]};`;
+      });
+      node._setAttribute(key, localValue);
+    } else {
+      node._setAttribute(key, `${String(value)}`);
+    }
+    model.dispatchEventToListeners(SDK.DOMModel.Events.AttrModified, {node: node, name: key});
+  });
 };
 
 Ant.findReactRoot = parent => {

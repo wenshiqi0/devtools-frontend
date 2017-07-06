@@ -18,6 +18,10 @@ Ant.TinyConnection = class {
       switchTarget: () => {
         Ant.targetManager.switchTarget();
       },
+      propsModified: ({ nodeId, props }) => {
+        if (nodeId)
+          Ant.targetManager.getCurrentModel().propsModified(nodeId, props);
+      }
     };
   }
 };

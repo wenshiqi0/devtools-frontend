@@ -13,12 +13,42 @@ Ant.ElementsTreeOutline = class extends Elements.ElementsTreeOutline {
       ));
     }
 
-    function callback({ data }) {
+    async function callback({ data }) {
       let j = 0;
-      (node._children || []).forEach(child => {
-        if (data && data[j] && child._localName !== 'label' && !child._nodeValue)
+      const agent = Ant.targetManager.getCurrentTarget().domAgent();
+      for (const i in node._children) {
+        let child = node._children[i];
+        if (!child) continue;
+        if (data && data[j] && !child._nodeValue) {
           child = Ant.combineNativeAndReactDom(child, data[j++]);
-      });
+
+          // `text` and `button` has span text inside.
+          // and we want to display it as inline text.
+          if (Ant.spanTags.has(child._localName) || (child._localName === 'label' && child._textChildren)) {
+            let textNode;
+            if (child._localName === 'text' || (child._localName === 'label' && child._textChildren)) {
+              await agent.requestChildNodes(child.id, 1);
+              textNode = child.children()[1];
+            } else {
+              const id = await agent.querySelector(child.id, 'span');
+              textNode = Ant.DOMNode.create(Ant.targetManager.getCurrentModel(), child._document, false, {
+                nodeId: id + 1,
+                backendNodeId: id,
+                nodeValue: child._textValue,
+                nodeType: 3,
+                childNodeCount: 0,
+                localName: '',
+                nodeName: '#text',
+              });
+            }
+            if (textNode) {
+              child.firstChild = textNode;
+              child._children = [ textNode ];
+              child.lastChild = textNode;
+            }
+          }
+        }
+      }
       this._updateChildren(parentTreeElement);
     }
 
@@ -58,6 +88,10 @@ Ant.combineNativeAndReactDom = (dom, data) => {
     const keyValue = {};
     keyValue.value = '';
     keyValue.name = key;
+    if (key.match(/^_/)) {
+      dom[key] = value;
+      return;
+    }
     if (typeof value === 'string') {
       keyValue.value = value;
     } else if (typeof value === 'object') {
@@ -65,7 +99,7 @@ Ant.combineNativeAndReactDom = (dom, data) => {
         keyValue.value += `${property}: ${value[property]};`;
       });
     } else {
-      keyValue.value += `{{${String(value)}}}`;
+      keyValue.value += `${String(value)}`;
     }
     keyValue._node = dom;
     obj.push(keyValue);
@@ -75,3 +109,5 @@ Ant.combineNativeAndReactDom = (dom, data) => {
   dom._attributesMap = objMap;
   return dom;
 };
+
+Ant.spanTags = new Set([ 'button', 'text' ]);

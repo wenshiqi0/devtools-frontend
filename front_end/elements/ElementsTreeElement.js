@@ -1675,7 +1675,11 @@ Elements.ElementsTreeElement.InitialChildrenLimit = 500;
 // or implicitly (for HTML5) forbid the closing tag.
 Elements.ElementsTreeElement.ForbiddenClosingTagElements = new Set([
   'area', 'base',  'basefont', 'br',   'canvas',   'col',  'command', 'embed',  'frame', 'hr',
-  'img',  'input', 'keygen',   'link', 'menuitem', 'meta', 'param',   'source', 'track', 'wbr'
+  'img',  'input', 'keygen',   'link', 'menuitem', 'meta', 'param',   'source', 'track', 'wbr',
+
+// ANT-IDE
+
+  'switch', 'radio', 'checkbox', 'image', 'slider', 'icon', 'progress', 'textarea', 'audio', 'video'
 ]);
 
 // These tags we do not allow editing their tag name.

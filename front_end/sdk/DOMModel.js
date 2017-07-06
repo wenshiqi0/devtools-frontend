@@ -1260,7 +1260,6 @@ SDK.DOMModel = class extends SDK.SDKModel {
    * @param {?Protocol.DOM.Node} payload
    */
   _setDocument(payload) {
-    console.log(payload);
     this._idToDOMNode = {};
     if (payload && 'nodeId' in payload)
       this._document = new SDK.DOMDocument(this, payload);

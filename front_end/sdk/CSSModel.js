@@ -367,9 +367,12 @@ SDK.CSSModel = class extends SDK.SDKModel {
      */
     function callback(
         error, inlinePayload, attributesPayload, matchedPayload, pseudoPayload, inheritedPayload, animationsPayload) {
-      console.log(error, matchedPayload, inlinePayload);
       if (error)
         return null;
+
+      // ANT-IDE
+      // user can not editor the element.style
+      inlinePayload.range = null;
 
       var node = this._domModel.nodeForId(nodeId);
       if (!node)
