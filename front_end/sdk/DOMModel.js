@@ -1028,7 +1028,7 @@ SDK.DOMModel = class extends SDK.SDKModel {
     this._document = null;
     /** @type {!Set<number>} */
     this._attributeLoadNodeIds = new Set();
-    target.registerDOMDispatcher(new SDK.DOMDispatcher(this));
+    // target.registerDOMDispatcher(new SDK.DOMDispatcher(this));
 
     this._runtimeModel = /** @type {!SDK.RuntimeModel} */ (target.model(SDK.RuntimeModel));
 

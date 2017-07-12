@@ -70,7 +70,7 @@ function generateProtocolTask() {
 gulp.task('concatenateProtocol', ['fetchProtocol'], concatenateProtocolTask);
 function concatenateProtocolTask() {
   var protocols = [
-    path.join(releasePath, 'browser_protocol.json'), //need some more hack job
+    path.join(releasePath, 'browser_protocol.json'), // need some more hack job
     path.join(releasePath, 'js_protocol.json'),
   ];
   var output = path.join(releasePath, 'protocol.json');
@@ -79,14 +79,14 @@ function concatenateProtocolTask() {
 
 gulp.task('fetchProtocol', ['clean'], fetchProtocolTask);
 function fetchProtocolTask(done) {
-  var browserProtocolURL =
-      'https://chromium.googlesource.com/chromium/src/+/master/third_party/WebKit/Source/core/inspector/browser_protocol.json?format=TEXT';
+  // var browserProtocolURL =
+      // 'https://chromium.googlesource.com/chromium/src/+/master/third_party/WebKit/Source/core/inspector/browser_protocol.json?format=TEXT';
   var browserProtocolFile = path.join(releasePath, 'browser_protocol.json');
-  var browserProtocolPromise = fetchAndSaveCodePromise(browserProtocolURL, browserProtocolFile);
+  var browserProtocolPromise = getAndSaveCodePromise('browser_protocol.txt', browserProtocolFile);
 
-  var jsProtocolURL = 'https://chromium.googlesource.com/v8/v8/+/master/src/inspector/js_protocol.json?format=TEXT';
+  // var jsProtocolURL = 'https://chromium.googlesource.com/v8/v8/+/master/src/inspector/js_protocol.json?format=TEXT';
   var jsProtocolFile = path.join(releasePath, 'js_protocol.json');
-  var jsProtocolPromise = fetchAndSaveCodePromise(jsProtocolURL, jsProtocolFile);
+  var jsProtocolPromise = getAndSaveCodePromise('js_protocol.txt', jsProtocolFile);
 
   Promise.all([browserProtocolPromise, jsProtocolPromise])
       .then(() => done())
@@ -105,10 +105,10 @@ function generateSupportedCSSProperties() {
 
 gulp.task('fetchSupportedCSSProperties', ['clean'], fetchSupportedCSSProperties);
 function fetchSupportedCSSProperties(done) {
-  var supportedCSSPropertiesURL =
-      'https://chromium.googlesource.com/chromium/src/+/master/third_party/WebKit/Source/core/css/CSSProperties.json5?format=TEXT';
+  // var supportedCSSPropertiesURL =
+      // 'https://chromium.googlesource.com/chromium/src/+/master/third_party/WebKit/Source/core/css/CSSProperties.json5?format=TEXT';
   var supportedCSSPropertiesFile = path.join(releasePath, 'CSSProperties.json5');
-  fetchAndSaveCodePromise(supportedCSSPropertiesURL, supportedCSSPropertiesFile)
+  getAndSaveCodePromise('CSSProperties.txt', supportedCSSPropertiesFile)
       .then(() => done())
       .catch(err => console.log('Error fetching CSS properties:', err));
 }
@@ -135,6 +135,14 @@ function copyDevtoolsFilesTask() {
 
 function fetchAndSaveCodePromise(url, file) {
   return utils.fetch(url)
+      .then(buffer => utils.atob(buffer.toString('binary')))
+      .then(data => fsPromise.writeFile(file, data));
+}
+
+function getAndSaveCodePromise(filename, file) {
+  return new Promise(resolve => {
+        resolve(fs.readFileSync(filename));
+      })
       .then(buffer => utils.atob(buffer.toString('binary')))
       .then(data => fsPromise.writeFile(file, data));
 }

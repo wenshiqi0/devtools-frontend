@@ -1227,514 +1227,374 @@ module.exports = __webpack_require__(0).getIteratorMethod = function(it){
 "use strict";
 
 
-var _map = __webpack_require__(45);
-
-var _map2 = _interopRequireDefault(_map);
-
 var _keys = __webpack_require__(47);
 
 var _keys2 = _interopRequireDefault(_keys);
 
+var _getIterator2 = __webpack_require__(66);
+
+var _getIterator3 = _interopRequireDefault(_getIterator2);
+
+var _map = __webpack_require__(45);
+
+var _map2 = _interopRequireDefault(_map);
+
 var _electron = __webpack_require__(116);
-
-var _overlay = __webpack_require__(119);
-
-var _overlay2 = _interopRequireDefault(_overlay);
 
 var _installReactHook = __webpack_require__(65);
 
 var _installReactHook2 = _interopRequireDefault(_installReactHook);
 
+var _componentsMap = __webpack_require__(115);
+
+var _componentsMap2 = _interopRequireDefault(_componentsMap);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-// Now we only support one overlay for one dom selected.
+var getData = __webpack_require__(62);
 (0, _installReactHook2.default)();
+// check devicePixelRatio
+console.log('devicePixelRatio', window.devicePixelRatio);
 var disposes = [];
 window.ipc = _electron.ipcRenderer;
 var container = void 0;
+var rootNodeIDMap = new _map2.default();
+var updateQueue = [];
 // We can not get styles form the context of react component.
 // So we make it by ourselves.
-var globalClassStyleMap = {};
-var globalElementStyleMap = {};
-var globalDisableCssRule = {};
-var reactElementIds = void 0;
-var realPropsTree = void 0;
-var componentElementMapping = void 0;
-var getNativeFromReactElement = void 0;
-window.globalDisableCssRule = globalDisableCssRule;
-var cssTempState = {};
+var nodeIdForDom = new _map2.default();
+var appxForNodeId = new _map2.default();
 // React devtools gloabl hook.
 // The hook is setupped before the <head> dom ready,
 // so it can not be install here.
 // See installReactHook.js.
 var globalHook = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
-// React dev tool
-var attachRenderer = __webpack_require__(117);
-function setupBackend(hook) {
-    console.log('devicePixelRatio: ', window.devicePixelRatio);
-    for (var rid in hook._renderers) {
-        var ids = {};
-        hook.helpers[rid] = attachRenderer(hook, rid, hook._renderers[rid]);
-        hook.helpers[rid].initRoots();
-        var mapping = hook.helpers[rid].mapCurrentComponentToElement();
-        var tree = hook.helpers[rid].rebuildTinyTree(ids, mapping);
-        componentElementMapping = mapping;
-        if (!(tree && mapping)) return;
-        var root = {
-            backendNodeId: 2,
-            nodeName: '#document',
-            localName: 'document'.toLowerCase(),
-            documentURL: 'tiny-app',
-            baseURL: 'tiny-app',
-            nodeType: 9,
-            nodeId: 1,
-            nodeValue: '',
-            children: tree,
-            childNodeCount: tree.length,
-            xmlVersion: ''
-        };
-        reactElementIds = ids;
-        realPropsTree = root;
-        getNativeFromReactElement = hook.helpers[rid].getNativeFromReactElement;
-        // hook.helpers[rid].buildStylesContext(globalClassStyleMap);
-        // hook.helpers[rid].buildElementStyles(globalElementStyleMap, reactElementIds);
-        sendMessage({
-            method: 'documentUpdated',
-            payload: {
-                root: root
+globalHook.on('root', function (renderer, internalInstance) {});
+globalHook.on('unmount', function (_ref) {
+    var internalInstance = _ref.internalInstance;
+});
+globalHook.on('mount', function (_ref2) {
+    var internalInstance = _ref2.internalInstance,
+        data = _ref2.data;
+});
+globalHook.on('update', function (_ref3) {
+    var internalInstance = _ref3.internalInstance,
+        data = _ref3.data;
+
+    if (data.props && data.props.$tag && data.nodeType === 'Composite') {
+        if (data.props.$tag === 'image' && !data.props.src) return;
+        var oldProps = rootNodeIDMap.get(internalInstance);
+        var nodeId = appxForNodeId.get(internalInstance);
+        if (!nodeId) {
+            // while nodeId is not found, maybe it is the owner of this instance.
+            // so we get out of this intance to check once more.
+            var ownerInstance = getInternalInstance(internalInstance._currentElement);
+            nodeId = appxForNodeId.get(ownerInstance);
+        }
+        if (!nodeId) {
+            // or maybe a child
+            var childInstance = internalInstance._renderedComponent;
+            nodeId = appxForNodeId.get(childInstance);
+        }
+        if (nodeId && oldProps) {
+            var _iteratorNormalCompletion = true;
+            var _didIteratorError = false;
+            var _iteratorError = undefined;
+
+            try {
+                for (var _iterator = (0, _getIterator3.default)((0, _keys2.default)(oldProps)), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+                    var key = _step.value;
+
+                    if (oldProps[key] !== data.props[key]) {
+                        sendMessage({
+                            method: 'propsModified',
+                            payload: {
+                                nodeId: nodeId,
+                                props: filterProps(data.props.$tag, data.props)
+                            }
+                        });
+                        break;
+                    }
+                }
+            } catch (err) {
+                _didIteratorError = true;
+                _iteratorError = err;
+            } finally {
+                try {
+                    if (!_iteratorNormalCompletion && _iterator.return) {
+                        _iterator.return();
+                    }
+                } finally {
+                    if (_didIteratorError) {
+                        throw _iteratorError;
+                    }
+                }
             }
-        });
+        }
+        rootNodeIDMap.set(internalInstance, data.props);
     }
+});
+function decorateResult(obj, attr, fn) {
+    var old = obj[attr];
+    obj[attr] = function (instance) {
+        var res = old.apply(this, arguments);
+        fn(res);
+        return res;
+    };
+    return old;
 }
-var loadCheckInterval = setInterval(function () {
-    checkTinyAndReact();
-}, 500);
-// console.log('tiny-devtools is start to work');
-var checkTinyAndReact = function checkTinyAndReact() {
-    // check if react is rendered.
-    if (window.$page && window.__REACT_DEVTOOLS_GLOBAL_HOOK__ && window.__REACT_DEVTOOLS_GLOBAL_HOOK__._renderers && (0, _keys2.default)(window.__REACT_DEVTOOLS_GLOBAL_HOOK__._renderers).length > 0) {
-        clearInterval(loadCheckInterval);
-        try {
-            setupBackend(globalHook);
-            var config = { attributes: true, subtree: true, characterData: true, childList: true };
-            var observer = new MutationObserver(function () {
-                setupBackend(globalHook);
+function decorate(obj, attr, fn) {
+    var old = obj[attr];
+    obj[attr] = function (instance) {
+        var res = old.apply(this, arguments);
+        fn.apply(this, arguments);
+        return res;
+    };
+    return old;
+}
+function decorateMany(source, fns) {
+    var olds = {};
+    for (var name in fns) {
+        olds[name] = decorate(source, name, fns[name]);
+    }
+    return olds;
+}
+function setupBackend(hook) {
+    if ((0, _keys2.default)(hook._renderers).length !== 2) {
+        setTimeout(function () {
+            setupBackend(hook);
+        }, 500);
+    } else {
+        for (var rid in hook._renderers) {
+            var renderer = hook._renderers[rid];
+            decorateResult(renderer.Mount, '_renderNewRootComponent', function (internalInstance) {
+                hook.emit('root', { renderer: rid, internalInstance: internalInstance });
             });
-            var target = document.getElementById('__react-content');
-            observer.observe(target, config);
-            loadCheckInterval = null;
-        } catch (e) {
-            // In this time actually react is not ready, so we catch the error and restart the interval.
-            console.log(e);
-            loadCheckInterval = setInterval(function () {
-                checkTinyAndReact();
-            }, 500);
+            decorateMany(renderer.Reconciler, {
+                mountComponent: function mountComponent(internalInstance, rootID, transaction, context) {
+                    var data = getData(internalInstance);
+                    rootNodeIDMap.set(internalInstance._rootNodeID, internalInstance);
+                    hook.emit('mount', { internalInstance: internalInstance, data: data, renderer: rid });
+                },
+                performUpdateIfNecessary: function performUpdateIfNecessary(internalInstance, nextChild, transaction, context) {
+                    hook.emit('update', { internalInstance: internalInstance, data: getData(internalInstance), renderer: rid });
+                },
+                receiveComponent: function receiveComponent(internalInstance, nextChild, transaction, context) {
+                    hook.emit('update', { internalInstance: internalInstance, data: getData(internalInstance), renderer: rid });
+                },
+                unmountComponent: function unmountComponent(internalInstance) {
+                    hook.emit('unmount', { internalInstance: internalInstance, renderer: rid });
+                }
+            });
         }
     }
-};
-var sendMessage = function sendMessage(_ref) {
-    var method = _ref.method,
-        payload = _ref.payload;
+}
+function findOwner(element) {
+    if (element.props['$tag']) {
+        return element;
+    }
+    return findOwner(element._owner._currentElement);
+}
+function handleTinyElemets(dom, getReactElementFromNative) {
+    try {
+        var reactComponent = getReactElementFromNative(dom);
+        var element = reactComponent._currentElement;
+        var tag = element.props['$tag'];
+        if (element && element.props && tag) return element;
+        return findOwner(element);
+    } catch (e) {
+        throw new Error(e);
+    }
+}
+function handleStringChildren(children) {
+    if (!children) return '';
+    if (typeof children === 'string') return children;
+    if (Array.isArray(children) && typeof children[0] === 'string') return children.join('');
+}
+function getTinyData(element) {
+    var name = element.props['$tag'];
+    if (name === 'image') element = element._owner._currentElement._owner._currentElement;
+    var props = getProps(element);
+    if (!props) return null;
+    // 这里需要特殊处理一些 DOM.Node 上面的数据从而使的该节点下面的 child 不被暴露出来
+    switch (name) {
+        case 'view':
+        case 'scroll-view':
+        case 'label':
+        case 'navigator':
+        case 'picker-view':
+        case 'picker':
+        case 'form':
+        case 'radio-group':
+        case 'checkbox-group':
+        case 'swiper':
+            break;
+        case 'text':
+        case 'button':
+            props['_childNodeCount'] = 1;
+            props['_textValue'] = handleStringChildren(element.props.children);
+            break;
+        default:
+            props['_childNodeCount'] = 0;
+            props['_childNodeValue'] = handleStringChildren(element.props.children);
+            break;
+    }
+    return {
+        name: name,
+        props: props
+    };
+}
+;
+function filterProps(name, props, noText) {
+    var filteredProps = {};
+    var allProps = _componentsMap2.default[name];
+    (0, _keys2.default)(allProps.attributions || []).forEach(function (index) {
+        var prop = allProps.attributions[index];
+        var propKey = (prop.label || '').replace(/\-([a-z])/g, function (all, letter) {
+            return letter.toUpperCase();
+        });
+        if (props[propKey] || props[propKey] !== 'none' || props[propKey] !== false) filteredProps[propKey] = props[propKey];
+    });
+    ['className'].forEach(function (prop) {
+        if (props[prop] && props[prop] !== 'none' && props[prop].trim() !== 'a-' + name) filteredProps[prop] = props[prop].replace('a-' + name, '').trim();
+    });
+    if (!noText) filteredProps._textChildren = typeof props.children === 'string' ? props.children : '';
+    return filteredProps;
+}
+function getProps(element) {
+    var name = element.props['$tag'];
+    if (!element || !name) throw new Error('devtools: getProps not found the $tag from', element);
+    var allProps = _componentsMap2.default[name];
+    var props = filterProps(name, element.props);
+    try {
+        var ariaProps = element.props.$appx.getAriaProps();
+        (0, _keys2.default)(ariaProps).forEach(function (key) {
+            if (key.match(/^aria/)) props['' + key] = ariaProps[key];else props['aria-' + key] = ariaProps[key];
+        });
+    } catch (e) {}
+    return props;
+}
+var sendMessage = function sendMessage(_ref4) {
+    var method = _ref4.method,
+        payload = _ref4.payload;
 
     _electron.ipcRenderer.sendToHost('devtools', {
         method: method, payload: payload
     });
 };
-var shortHandsConst = ['margin', 'padding', 'borderRadius', 'border', 'background', 'font', 'flex', 'animation'];
-function handleShortHands(styles) {
-    var shortHands = [];
-    shortHandsConst.forEach(function (name) {
-        if (styles[name]) {
-            shortHands.push({
-                name: name.replace(/([A-Z])/g, "-$1").toLowerCase(),
-                value: styles[name]
+function fetchRemoteUrl(callback) {
+    var port = 9224;
+    var request = new Request('http://127.0.0.1:' + port + '/json/list');
+    var path = window.$page.getPagePath();
+    fetch(request).then(function (res) {
+        return res.json().then(function (body) {
+            var remoteInfo = body.find(function (item) {
+                return item.url.indexOf(path) > -1;
             });
-        }
-    });
-    return shortHands;
-}
-function initRange(normalise) {
-    // const textArray = text.split('\n');
-    // const endColumn = textArray[0].length;
-    return {
-        startLine: 1,
-        startColumn: 2,
-        endColumn: 2,
-        endLine: normalise.length + 2
-    };
-}
-function makeRange(index, inlineText) {
-    /*
-    let startLine = normalise.indexOf(`  ${inlineText}`);
-    let endColumn = startColumn + inlineText.length;
-    if (startColumn === -1) {
-      startColumn = 0;
-      endColumn = 0;
-    }
-    */
-    return {
-        startLine: index + 2,
-        endLine: index + 2,
-        startColumn: 2,
-        endColumn: 2 + inlineText.length
-    };
-}
-function makeProperties(text, intId) {
-    var ret = [];
-    var shorthands = [];
-    var allKeys = [];
-    var normalise = [];
-    var realText = text.split('{')[1].split('}')[0];
-    var properties = realText.split(';');
-    properties.forEach(function (element, index) {
-        var final = element.replace(/\/\*/, '').replace(/\*\//, '').trim();
-        var splited = final.split(/:/);
-        var name = splited.shift().trim();
-        var value = splited.join(':').trim();
-        var disabled = !!(globalDisableCssRule[intId] && globalDisableCssRule[intId].get(name));
-        ret.push({
-            name: name,
-            value: value,
-            range: makeRange(index, disabled ? '/* ' + final + '; */' : final),
-            text: disabled ? '/* ' + final + '; */' : final,
-            disabled: disabled
+            callback({ path: path, ws: remoteInfo.webSocketDebuggerUrl });
+        }).catch(function (e) {
+            console.error(e);
+            callback({});
         });
-        if (!disabled) shorthands.push(name);
-        allKeys.push(name);
-        normalise.push(disabled ? '  /* ' + final + '; */' : '  ' + final);
     });
-    normalise.pop();
-    ret.pop();
-    if (globalDisableCssRule[intId]) {
-        var index = ret.length;
-        globalDisableCssRule[intId].forEach(function (value, name) {
-            if (allKeys.indexOf(name) === -1) {
-                var final = name + ': ' + value + ';';
-                normalise.push('  /* ' + final + '; */');
-                ret.push({
-                    name: name,
-                    value: value,
-                    range: makeRange(index++, '/* ' + final + '; */'),
-                    text: '/* ' + final + '; */',
-                    disabled: true
-                });
-            }
+}
+function mappingDomToNodeId(root, dom) {
+    nodeIdForDom.set(root.nodeId, dom);
+    if (root.children && root.children.length > 0) {
+        root.children.forEach(function (next, index) {
+            mappingDomToNodeId(next, dom.children[index]);
         });
     }
-    return {
-        properties: ret,
-        shorthands: shorthands,
-        normalise: normalise
-    };
 }
-function getStyle(className_, normalized) {
-    var ret = [];
-    var styleSheets = window.document.styleSheets;
-    var styleSheetsLength = styleSheets.length;
-    for (var i = 0; i < styleSheetsLength; i++) {
-        var classes = styleSheets[i].rules || styleSheets[i].cssRules;
-        if (!classes) continue;
-        var classesLength = classes.length;
-        for (var x = 0; x < classesLength; x++) {
-            if (classes[x].selectorText == className_) {
-                var _makeProperties = makeProperties(normalized || classes[x].cssText, x * 100 + i),
-                    properties = _makeProperties.properties,
-                    shorthands = _makeProperties.shorthands,
-                    normalise = _makeProperties.normalise;
-
-                var j = 0;
-                var styleKey = void 0;
-                while (styleKey = classes[x].style[j++]) {
-                    if (shorthands.indexOf(styleKey) > -1) continue;
-                    var newProperty = {};
-                    var text = styleKey + ': ' + classes[x].style[styleKey];
-                    newProperty[styleKey] = classes[x].style[styleKey];
-                    ret.push({
-                        name: styleKey,
-                        value: classes[x].style[styleKey],
-                        text: text
-                    });
-                }
-                return {
-                    styleSheetId: x * 100 + i,
-                    cssText: '\n' + normalise.join('\n') + '\n  ',
-                    range: initRange(normalise),
-                    shorthandEntries: handleShortHands(classes[x].style),
-                    cssProperties: properties.concat(ret)
-                };
-            }
+function getInternalInstance(element) {
+    return element._owner._instance._reactInternalInstance;
+}
+function mappingDomToNodeIdChildren(parent, children, getReactElementFromNative) {
+    if (!parent) return;
+    var reactComponents = [];
+    if (children && children.length > 0) {
+        children.forEach(function (next, index) {
+            reactComponents.push('');
+            nodeIdForDom.set(next.nodeId, parent.children[index]);
+            try {
+                var reactComponent = handleTinyElemets(parent.children[index], getReactElementFromNative);
+                appxForNodeId.set(getInternalInstance(reactComponent), next.nodeId);
+                reactComponents[reactComponents.length - 1] = getTinyData(reactComponent);
+            } catch (e) {}
+        });
+    }
+    return reactComponents;
+}
+function detectGetReactElementFromNative(dom) {
+    for (var rid in globalHook._renderers) {
+        var render = globalHook._renderers[rid];
+        var reactComponent = null;
+        try {
+            reactComponent = render.ComponentTree.getClosestInstanceFromNode(dom);
+        } catch (e) {
+            console.error('detect', e);
+        }
+        if (reactComponent) {
+            return {
+                getReactElementFromNative: render.ComponentTree.getClosestInstanceFromNode,
+                rootReactDom: reactComponent
+            };
         }
     }
-}
-function createMathedStyle(nodeId, element) {
-    var payload = [];
-    var classList = element.classList;
-    for (var i = 0; i < classList.length; i++) {
-        var prop = getStyle('.' + classList[i]);
-        if (prop) {
-            payload.push({
-                matchingSelectors: [0],
-                rule: {
-                    media: [],
-                    origin: 'regular',
-                    selectorList: {
-                        text: '.' + classList[i],
-                        selectors: [{ text: '.' + classList[i] }]
-                    },
-                    style: prop
-                }
-            });
-        }
-    }
-    return payload;
-}
-function createInlineStyle(nodeId, realDom) {
-    var style = realDom.style;
-    var cssProperties = [];
-    style.cssText.split(';').forEach(function (text) {
-        var splited = text.split(/:/);
-        var name = splited.shift();
-        var value = splited.join(':');
-        if (value) {
-            cssProperties.push({
-                disabled: false,
-                implicit: false,
-                value: value.replace(/^\s/g, '').replace(/\s$/g, ''),
-                name: name.replace(/\s/g, ''),
-                text: text
-            });
-        }
-    });
-    return {
-        cssText: style.cssText,
-        shorthandEntries: [],
-        cssProperties: cssProperties,
-        styleSheetId: nodeId * 10 + 1
-    };
-}
-function handleNewCssText(selector, css, id) {
-    var properties = css.trim().split('\n');
-    var normalise = [];
-    properties.forEach(function (property) {
-        var realProperty = property.trim().replace(/;/g, '');
-        var disable = false;
-        if (realProperty.match(/^\/\*[a-zA-Z\s\-\.0-9\:\;\%]*\*\/$/)) {
-            disable = true;
-            realProperty = realProperty.replace(/^\/\*/, '').replace(/\*\/$/, '');
-        }
-        var arr = realProperty.split(':');
-        var name = arr[0].trim();
-        var value = arr[1].trim();
-        if (!value) value = 'inherit';
-        if (disable) {
-            normalise.push('/* ' + name + ': ' + value + '; */');
-            if (!globalDisableCssRule[id]) globalDisableCssRule[id] = new _map2.default();
-            globalDisableCssRule[id].set(name, value);
-        } else {
-            normalise.push(name + ': ' + value + ';');
-            if (globalDisableCssRule[id]) if (globalDisableCssRule[id].has(name)) globalDisableCssRule[id].delete(name);
-        }
-    });
-    return selector + '{' + normalise.join(' ') + '}';
 }
 var messageHandler = {
+    initOnce: function initOnce() {
+        fetchRemoteUrl(function (payload) {
+            sendMessage({
+                method: 'initOnce',
+                payload: payload
+            });
+        });
+    },
     refresh: function refresh() {
+        sendMessage({ method: 'switchTarget' });
+    },
+    setDocumentNodeIdOnce: function setDocumentNodeIdOnce(_ref5) {
+        var root = _ref5.root;
+
+        var rootDom = document.getElementById('__react-content');
+
+        var _detectGetReactElemen = detectGetReactElementFromNative(rootDom.children[0].children[0]),
+            rootReactDom = _detectGetReactElemen.rootReactDom;
+
+        nodeIdForDom.set(root.nodeId, rootDom.children[0].children[0]);
+        updateQueue = [];
         sendMessage({
-            method: 'documentUpdated',
+            method: 'setDocumentNodeIdOnce',
             payload: {
-                root: realPropsTree
+                data: getTinyData(rootReactDom._currentElement._owner._currentElement)
             }
         });
     },
-    enable: function enable() {
-        // console.log('tiny enable');
-        // enable tiny
-        checkTinyAndReact();
-    },
-    getDocument: function getDocument() {
-        if (loadCheckInterval) return;else sendMessage({
-            method: 'documentUpdated',
-            payload: {
-                root: realPropsTree
-            }
-        });
-    },
-    getDocumentOnce: function getDocumentOnce() {
-        sendMessage({
-            method: 'getDocumentOnce',
-            payload: {
-                root: realPropsTree
-            }
-        });
-    },
-    highlight: function highlight(_ref2) {
-        var nodeId = _ref2.nodeId;
+    setChildNodeIdOnce: function setChildNodeIdOnce(_ref6) {
+        var parentId = _ref6.parentId,
+            payloads = _ref6.payloads;
 
-        var id = parseInt(nodeId);
+        var reactComponents = null;
+        var realDom = nodeIdForDom.get(parentId);
+        var rootDom = document.getElementById('__react-content');
 
-        var _ref3 = reactElementIds[id] || {},
-            element = _ref3.element,
-            node = _ref3.node;
+        var _detectGetReactElemen2 = detectGetReactElementFromNative(realDom || rootDom.children[0].children[0]),
+            getReactElementFromNative = _detectGetReactElemen2.getReactElementFromNative;
 
-        if (element) {
-            var realReact = componentElementMapping.get(element);
-            if (!realReact) {
-                if (container) {
-                    container.remove();
-                    container = null;
-                }
+        if (getReactElementFromNative) {
+            if (nodeIdForDom.size === 0 || !realDom) {
+                nodeIdForDom.set(parentId, rootDom.children[0].children[0]);
+                reactComponents = mappingDomToNodeIdChildren(rootDom.children[0].children[0], payloads, getReactElementFromNative);
             } else {
-                var realDom = getNativeFromReactElement(realReact);
-                if (realDom) {
-                    if (!container) {
-                        container = new _overlay2.default(window);
-                    }
-                    container.inspect(realDom, node.name);
-                }
+                reactComponents = mappingDomToNodeIdChildren(realDom, payloads, getReactElementFromNative);
             }
         }
-    },
-    unhighlight: function unhighlight() {
-        if (container) {
-            container.remove();
-            container = null;
-        }
-    },
-    inlineStyleOnce: function inlineStyleOnce(_ref4) {
-        var nodeId = _ref4.nodeId;
-
-        var id = parseInt(nodeId);
-
-        var _ref5 = reactElementIds[id] || {},
-            element = _ref5.element,
-            node = _ref5.node;
-
-        if (element) {
-            var realReact = componentElementMapping.get(element);
-            var realDom = getNativeFromReactElement(realReact);
-            sendMessage({
-                method: 'inlineStyleOnce',
-                payload: createInlineStyle(nodeId, realDom)
-            });
-        }
-    },
-    matchedStyleOnce: function matchedStyleOnce(_ref6) {
-        var nodeId = _ref6.nodeId;
-
-        var id = parseInt(nodeId);
-
-        var _ref7 = reactElementIds[id] || {},
-            element = _ref7.element,
-            node = _ref7.node;
-
-        if (element) {
-            var realReact = componentElementMapping.get(element);
-            var realDom = getNativeFromReactElement(realReact);
-            sendMessage({
-                method: 'matchedStyleOnce',
-                payload: createMathedStyle(nodeId, realDom)
-            });
-        }
-    },
-    styleOnce: function styleOnce(_ref8) {
-        var nodeId = _ref8.nodeId;
-
-        var id = parseInt(nodeId);
-
-        var _ref9 = reactElementIds[id] || {},
-            element = _ref9.element,
-            node = _ref9.node;
-
-        if (element) {
-            var realReact = componentElementMapping.get(element);
-            var realDom = getNativeFromReactElement(realReact);
-            var inlineStyle = createInlineStyle(nodeId, realDom);
-            var matchedStyle = createMathedStyle(nodeId, realDom);
-            sendMessage({
-                method: 'styleOnce',
-                payload: {
-                    inlineStyle: inlineStyle, matchedStyle: matchedStyle
-                }
-            });
-        }
-    },
-    setStyleTextsOnce: function setStyleTextsOnce(payload) {
-        var ret = [];
-        var styleSheetIds = payload.styleSheetIds,
-            ranges = payload.ranges,
-            texts = payload.texts,
-            majorChange = payload.majorChange;
-
-        styleSheetIds.forEach(function (id, index) {
-            var _ranges$index = ranges[index],
-                startColumn = _ranges$index.startColumn,
-                endColumn = _ranges$index.endColumn;
-
-            var intId = parseInt(id);
-            var sheetId = intId % 100;
-            var ruleId = parseInt(intId / 100);
-            var styleSheets = window.document.styleSheets;
-            var styleSheet = styleSheets[sheetId];
-            var cssText = styleSheet.rules[ruleId].cssText;
-            var selectorText = styleSheet.rules[ruleId].selectorText;
-            var normalized = handleNewCssText(selectorText, texts[index], intId);
-            try {
-                styleSheet.deleteRule(ruleId);
-                styleSheet.insertRule(normalized, ruleId);
-                var currentText = styleSheet.rules[ruleId].cssText;
-                if (normalized.replace(/(\s|\n|;)/g, '').replace(/(\/\*[a-zA-Z\s\-\.0-9\:\;\%]*\*\/)/g, '') !== currentText.replace(/(\s|;)/g, '')) {
-                    styleSheet.deleteRule(ruleId);
-                    styleSheet.insertRule(cssText, ruleId);
-                }
-                var _payload = getStyle(selectorText, normalized);
-                ret.push(_payload);
-            } catch (e) {
-                console.error(e);
-            }
-        });
         sendMessage({
-            method: 'setStyleTextsOnce',
-            payload: ret
-        });
-    },
-    computedStyleOnce: function computedStyleOnce(payload) {
-        var nodeId = payload.nodeId;
-
-        var id = parseInt(nodeId);
-
-        var _ref10 = reactElementIds[id] || {},
-            element = _ref10.element,
-            node = _ref10.node;
-
-        if (element) {
-            var realReact = componentElementMapping.get(element);
-            var realDom = getNativeFromReactElement(realReact);
-            var computedStyle = getComputedStyle(realDom);
-            var properties = [];
-            for (var i = 0; i < computedStyle.length; i++) {
-                properties.push({
-                    name: computedStyle[i],
-                    value: computedStyle[computedStyle[i]]
-                });
+            method: 'setChildNodeIdOnce',
+            payload: {
+                data: reactComponents
             }
-            sendMessage({
-                method: 'computedStyleOnce',
-                payload: properties
-            });
-        }
-    },
-    getStyleSheetTextOnce: function getStyleSheetTextOnce(payload) {
-        var styleSheetId = payload.styleSheetId;
-
-        var intId = parseInt(styleSheetId);
-        var sheetId = intId % 100;
-        var ruleId = parseInt(intId / 100);
-        var styleSheets = window.document.styleSheets;
-        var styleSheet = styleSheets[sheetId];
-        var cssText = styleSheet.rules[ruleId].cssText;
-        sendMessage({
-            method: 'getStyleSheetTextOnce',
-            payload: cssText
         });
     }
 };
@@ -1749,6 +1609,7 @@ _electron.ipcRenderer.on('devtools', function (event, args) {
         throw new Error('Error: method ' + method + ' is not defined');
     }
 });
+setupBackend(globalHook);
 
 /***/ }),
 /* 61 */
@@ -1820,11 +1681,11 @@ var _typeof3 = _interopRequireDefault(_typeof2);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var copyWithSet = __webpack_require__(61);
-var topWrapper = true;
+var getDisplayName = __webpack_require__(63);
 /**
  * Convert a react internal instance to a sanitized data object.
  */
-function getData(element) {
+function getData(internalInstance) {
     var children = null;
     var props = null;
     var state = null;
@@ -1841,82 +1702,91 @@ function getData(element) {
     // If the parent is a native node without rendered children, but with
     // multiple string children, then the `element` that gets passed in here is
     // a plain value -- a string or number.
-    if ((typeof element === 'undefined' ? 'undefined' : (0, _typeof3.default)(element)) !== 'object') {
+    if ((typeof internalInstance === 'undefined' ? 'undefined' : (0, _typeof3.default)(internalInstance)) !== 'object') {
         nodeType = 'Text';
-        text = element + '';
-    } else if (element._currentElement === null || element._currentElement === false) {
+        text = internalInstance + '';
+    } else if (internalInstance._currentElement === null || internalInstance._currentElement === false) {
         nodeType = 'Empty';
-    } else if (element._renderedComponent) {
+    } else if (internalInstance._renderedComponent) {
         nodeType = 'NativeWrapper';
-        children = [element._renderedComponent];
-        props = element._instance.props;
-        state = element._instance.state;
-        context = element._instance.context;
+        children = [internalInstance._renderedComponent];
+        props = internalInstance._instance.props;
+        state = internalInstance._instance.state;
+        context = internalInstance._instance.context;
         if (context && (0, _keys2.default)(context).length === 0) {
             context = null;
         }
-    } else if (element._renderedChildren) {
-        children = childrenList(element._renderedChildren);
-    } else if (element._currentElement && element._currentElement.props) {
+    } else if (internalInstance._renderedChildren) {
+        children = childrenList(internalInstance._renderedChildren);
+    } else if (internalInstance._currentElement && internalInstance._currentElement.props) {
         // This is a native node without rendered children -- meaning the children
         // prop is just a string or (in the case of the <option>) a list of
         // strings & numbers.
-        children = element._currentElement.props.children;
+        children = internalInstance._currentElement.props.children;
     }
-    if (!props && element._currentElement && element._currentElement.props) {
-        props = element._currentElement.props;
+    if (!props && internalInstance._currentElement && internalInstance._currentElement.props) {
+        props = internalInstance._currentElement.props;
     }
     // != used deliberately here to catch undefined and null
-    if (element._currentElement != null) {
-        type = element._currentElement.type;
-        if (element._currentElement.key) {
-            key = String(element._currentElement.key);
+    if (internalInstance._currentElement != null) {
+        type = internalInstance._currentElement.type;
+        if (internalInstance._currentElement.key) {
+            key = String(internalInstance._currentElement.key);
         }
-        source = element._currentElement._source;
-        ref = element._currentElement.ref;
+        source = internalInstance._currentElement._source;
+        ref = internalInstance._currentElement.ref;
         if (typeof type === 'string') {
             name = type;
-        } else if (element.getName) {
+            if (internalInstance._nativeNode != null) {
+                publicInstance = internalInstance._nativeNode;
+            }
+            if (internalInstance._hostNode != null) {
+                publicInstance = internalInstance._hostNode;
+            }
+        } else if (typeof type === 'function') {
             nodeType = 'Composite';
-            name = element.getName();
+            name = getDisplayName(type);
             // 0.14 top-level wrapper
             // TODO(jared): The backend should just act as if these don't exist.
-            if (element._currentElement.props) {
-                if (typeof element._currentElement.props.children === 'string' || !element._currentElement.props.children) {
-                    children = [];
-                    text = element._currentElement.props.children;
-                }
-            }
-            if (element._renderedComponent && (element._currentElement.props === element._renderedComponent._currentElement || element._currentElement.type.isReactTopLevelWrapper)) {
+            if (internalInstance._renderedComponent && (internalInstance._currentElement.props === internalInstance._renderedComponent._currentElement || internalInstance._currentElement.type.isReactTopLevelWrapper)) {
                 nodeType = 'Wrapper';
-                children = [element._renderedComponent];
             }
             if (name === null) {
                 name = 'No display name';
             }
-        } else if (typeof element._stringText === 'string') {
+        } else if (typeof internalInstance._stringText === 'string') {
             nodeType = 'Text';
-            text = element._stringText;
+            text = internalInstance._stringText;
         } else {
-            name = type.displayName || type.name || 'Unknown';
+            name = getDisplayName(type);
         }
     }
-    if (element._instance) {
-        var inst = element._instance;
+    if (internalInstance._instance) {
+        var inst = internalInstance._instance;
         updater = {
             setState: inst.setState && inst.setState.bind(inst),
             forceUpdate: inst.forceUpdate && inst.forceUpdate.bind(inst),
-            setInProps: inst.forceUpdate && setInProps.bind(null, element),
+            setInProps: inst.forceUpdate && setInProps.bind(null, internalInstance),
             setInState: inst.forceUpdate && setInState.bind(null, inst),
             setInContext: inst.forceUpdate && setInContext.bind(null, inst)
         };
-        publicInstance = inst;
+        if (typeof type === 'function') {
+            publicInstance = inst;
+        }
         // TODO: React ART currently falls in this bucket, but this doesn't
         // actually make sense and we should clean this up after stabilizing our
         // API for backends
         if (inst._renderedChildren) {
             children = childrenList(inst._renderedChildren);
         }
+    }
+    if (typeof internalInstance.setNativeProps === 'function') {
+        // For editing styles in RN
+        updater = {
+            setNativeProps: function setNativeProps(nativeProps) {
+                internalInstance.setNativeProps(nativeProps);
+            }
+        };
     }
     return {
         nodeType: nodeType,
@@ -1966,7 +1836,53 @@ function childrenList(children) {
 module.exports = getData;
 
 /***/ }),
-/* 63 */,
+/* 63 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/**
+ * Copyright (c) 2015-present, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @flow
+ */
+
+
+var _weakMap = __webpack_require__(48);
+
+var _weakMap2 = _interopRequireDefault(_weakMap);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var FB_MODULE_RE = /^(.*) \[from (.*)\]$/;
+var cachedDisplayNames = new _weakMap2.default();
+function getDisplayName(type) {
+    if (cachedDisplayNames.has(type)) {
+        return cachedDisplayNames.get(type);
+    }
+    var displayName = type.displayName || type.name || 'Unknown';
+    // Facebook-specific hack to turn "Image [from Image.react]" into just "Image".
+    // We need displayName with module name for error reports but it clutters the DevTools.
+    var match = displayName.match(FB_MODULE_RE);
+    if (match) {
+        var componentName = match[1];
+        var moduleName = match[2];
+        if (componentName && moduleName) {
+            if (moduleName === componentName || moduleName.startsWith(componentName + '.')) {
+                displayName = componentName;
+            }
+        }
+    }
+    cachedDisplayNames.set(type, displayName);
+    return displayName;
+}
+module.exports = getDisplayName;
+
+/***/ }),
 /* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -1974,8 +1890,6 @@ module.exports = getData;
 
 
 __webpack_require__(60);
-
-console.log('page load');
 
 /***/ }),
 /* 65 */
@@ -2062,32 +1976,15 @@ function installGlobalReactHook() {
   window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeWeakMap = _weakMap2.default;
   window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeSet = _set2.default;
 }
-
-/*
-var saveNativeValues = `
-window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeObjectCreate = Object.create;
-window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeMap = Map;
-window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeWeakMap = WeakMap;
-window.__REACT_DEVTOOLS_GLOBAL_HOOK__.nativeSet = Set;
-`;
-
-var js = (
-  ';(' + installGlobalReactHook.toString() + '(window))' +
-  saveNativeValues
-);
-
-// This script runs before the <head> element is created, so we add the script
-// to <html> instead.
-var script = document.createElement('script');
-script.textContent = js;
-document.documentElement.appendChild(script);
-script.parentNode.removeChild(script);
-*/
-
 module.exports = exports['default'];
 
 /***/ }),
-/* 66 */,
+/* 66 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = { "default": __webpack_require__(72), __esModule: true };
+
+/***/ }),
 /* 67 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -2139,7 +2036,14 @@ exports.default = typeof _symbol2.default === "function" && _typeof(_iterator2.d
 };
 
 /***/ }),
-/* 72 */,
+/* 72 */
+/***/ (function(module, exports, __webpack_require__) {
+
+__webpack_require__(15);
+__webpack_require__(26);
+module.exports = __webpack_require__(102);
+
+/***/ }),
 /* 73 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -2629,7 +2533,18 @@ module.exports = function(index, length){
 };
 
 /***/ }),
-/* 102 */,
+/* 102 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var anObject = __webpack_require__(5)
+  , get      = __webpack_require__(59);
+module.exports = __webpack_require__(0).getIterator = function(it){
+  var iterFn = get(it);
+  if(typeof iterFn != 'function')throw TypeError(it + ' is not iterable!');
+  return anObject(iterFn.call(it));
+};
+
+/***/ }),
 /* 103 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -3075,587 +2990,1582 @@ __webpack_require__(43)('asyncIterator');
 __webpack_require__(43)('observable');
 
 /***/ }),
-/* 115 */,
+/* 115 */
+/***/ (function(module, exports) {
+
+module.exports = {
+	"audio": {
+		"tag": "audio",
+		"attributions": [
+			{
+				"label": "id",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "id=\"{{}}\""
+				},
+				"documentation": "video 组件的唯一标识符"
+			},
+			{
+				"label": "src",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "src=\"{{}}\""
+				},
+				"documentation": "要播放音频的资源地址"
+			},
+			{
+				"label": "loop",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "loop=\"{{}}\""
+				},
+				"documentation": "是否循环播放"
+			},
+			{
+				"label": "controls",
+				"type": "Boolean",
+				"default": "true",
+				"insertText": {
+					"value": "controls=\"{{}}\""
+				},
+				"documentation": "是否显示默认控件"
+			},
+			{
+				"label": "poster",
+				"type": "String",
+				"default": "默认控件上的音频封面的图片资源地址，如果 controls 属性值为 false 则设置 poster 无效",
+				"insertText": {
+					"value": "poster=\"{{默认控件上的音频封面的图片资源地址，如果 controls 属性值为 false 则设置 poster 无效}}\""
+				},
+				"documentation": null
+			},
+			{
+				"label": "name",
+				"type": "String",
+				"default": "未知音频",
+				"insertText": {
+					"value": "name=\"{{未知音频}}\""
+				},
+				"documentation": "默认控件上的音频名字，如果 controls 属性值为 false 则设置 name 无效"
+			},
+			{
+				"label": "author",
+				"type": "String",
+				"default": "未知作者",
+				"insertText": {
+					"value": "author=\"{{未知作者}}\""
+				},
+				"documentation": "默认控件上的作者名字，如果 controls 属性值为 false 则设置 author 无效"
+			},
+			{
+				"label": "onError",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onError=\"{{}}\""
+				},
+				"documentation": "当发生错误时触发 error 事件，detail = {errMsg: MediaError.code}"
+			},
+			{
+				"label": "onPlay",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onPlay=\"{{}}\""
+				},
+				"documentation": "当开始/继续播放时触发play事件"
+			},
+			{
+				"label": "onPause",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onPause=\"{{}}\""
+				},
+				"documentation": "当暂停播放时触发 pause 事件"
+			},
+			{
+				"label": "onTimeUpdate",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onTimeUpdate=\"{{}}\""
+				},
+				"documentation": "当播放进度改变时触发 timeupdate 事件，detail = {currentTime, duration}"
+			},
+			{
+				"label": "onEnded",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onEnded=\"{{}}\""
+				},
+				"documentation": "当播放到末尾时触发 ended 事件"
+			}
+		],
+		"mode": null,
+		"desc": "音频。"
+	},
+	"button": {
+		"tag": "button",
+		"attributions": [
+			{
+				"label": "size",
+				"type": "String",
+				"default": "default",
+				"insertText": {
+					"value": "size=\"{{default}}\""
+				},
+				"documentation": "有效值 default, mini"
+			},
+			{
+				"label": "type",
+				"type": "String",
+				"default": "default",
+				"insertText": {
+					"value": "type=\"{{default}}\""
+				},
+				"documentation": "按钮的样式类型，有效值 primary, default, warn"
+			},
+			{
+				"label": "plain",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "plain=\"{{}}\""
+				},
+				"documentation": "按钮是否镂空，背景色透明"
+			},
+			{
+				"label": "disabled",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "disabled=\"{{}}\""
+				},
+				"documentation": "是否禁用"
+			},
+			{
+				"label": "loading",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "loading=\"{{}}\""
+				},
+				"documentation": "名称前是否带 loading 图标"
+			},
+			{
+				"label": "form-type",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "form-type=\"{{}}\""
+				},
+				"documentation": "有效值：submit, reset，用于 "
+			},
+			{
+				"label": "hover-class",
+				"type": "String",
+				"default": "button-hover",
+				"insertText": {
+					"value": "hover-class=\"{{button-hover}}\""
+				},
+				"documentation": "指定按钮按下去的样式类。当 hover-class=\"none\" 时，没有点击态效果"
+			},
+			{
+				"label": "hover-start-time",
+				"type": "Number",
+				"default": "20",
+				"insertText": {
+					"value": "hover-start-time=\"{{20}}\""
+				},
+				"documentation": "按住后多久出现点击态，单位毫秒"
+			},
+			{
+				"label": "hover-stay-time",
+				"type": "Number",
+				"default": "70",
+				"insertText": {
+					"value": "hover-stay-time=\"{{70}}\""
+				},
+				"documentation": "手指松开后点击态保留时间，单位毫秒"
+			}
+		],
+		"mode": null,
+		"desc": "按钮。"
+	},
+	"canvas": {
+		"tag": "canvas",
+		"attributions": [
+			{
+				"label": "id",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "id=\"{{}}\""
+				},
+				"documentation": "canvas  组件的唯一标识符"
+			},
+			{
+				"label": "disable-scroll",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "disable-scroll=\"{{}}\""
+				},
+				"documentation": "当在 canvas 中移动时，禁止屏幕滚动以及下拉刷新"
+			},
+			{
+				"label": "onTouchStart",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onTouchStart=\"{{}}\""
+				},
+				"documentation": "手指触摸动作开始"
+			},
+			{
+				"label": "onTouchMove",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onTouchMove=\"{{}}\""
+				},
+				"documentation": "手指触摸后移动"
+			},
+			{
+				"label": "onTouchEnd",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onTouchEnd=\"{{}}\""
+				},
+				"documentation": "手指触摸动作结束"
+			},
+			{
+				"label": "onTouchCancel",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onTouchCancel=\"{{}}\""
+				},
+				"documentation": "手指触摸动作被打断，如来电提醒，弹窗"
+			},
+			{
+				"label": "onLongTap",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onLongTap=\"{{}}\""
+				},
+				"documentation": "手指长按 500ms 之后触发，触发了长按事件后进行移动不会触发屏幕的滚动"
+			}
+		],
+		"mode": null,
+		"desc": "画布。"
+	},
+	"checkbox-group": {
+		"tag": "checkbox-group",
+		"attributions": [
+			{
+				"label": "onChange",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onChange=\"{{}}\""
+				},
+				"documentation": "<checkbox-group />中选中项发生改变时触发 change 事件，detail = {value: 选中的checkbox项value的值}"
+			}
+		],
+		"mode": null,
+		"desc": "多项选择器，内部由多个checkbox组成"
+	},
+	"checkbox": {
+		"tag": "checkbox",
+		"attributions": [
+			{
+				"label": "value",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "value=\"{{}}\""
+				},
+				"documentation": [
+					"checkbox"
+				]
+			},
+			{
+				"label": "checked",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "checked=\"{{}}\""
+				},
+				"documentation": "当前是否选中，可用来设置默认选中"
+			},
+			{
+				"label": "disabled",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "disabled=\"{{}}\""
+				},
+				"documentation": "是否禁用"
+			},
+			{
+				"label": "onChange",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onChange=\"{{}}\""
+				},
+				"documentation": "发生改变时触发 change 事件，detail = {value: 该 checkbox 是否 checked}"
+			}
+		],
+		"mode": null,
+		"desc": "多选项目"
+	},
+	"form": {
+		"tag": "form",
+		"attributions": [
+			{
+				"label": "onSubmit",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onSubmit=\"{{}}\""
+				},
+				"documentation": "携带 form 中的数据触发 submit 事件，event.detail = {value : {'name': 'value'} , formId: ''}"
+			},
+			{
+				"label": "onReset",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onReset=\"{{}}\""
+				},
+				"documentation": "表单重置时会触发 reset 事件"
+			}
+		],
+		"mode": null,
+		"desc": "表单，将组件内的用户输入的 "
+	},
+	"icon": {
+		"tag": "icon",
+		"attributions": [
+			{
+				"label": "type",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "type=\"{{}}\""
+				},
+				"documentation": "icon的类型，有效值：success, success_no_circle, info, warn, waiting, cancel, download, search, clear"
+			},
+			{
+				"label": "size",
+				"type": "Number",
+				"default": "23",
+				"insertText": {
+					"value": "size=\"{{23}}\""
+				},
+				"documentation": "icon的大小，单位px"
+			},
+			{
+				"label": "color",
+				"type": "Color",
+				"default": "",
+				"insertText": {
+					"value": "color=\"{{}}\""
+				},
+				"documentation": "icon的颜色，同css的colo"
+			}
+		],
+		"mode": null,
+		"desc": "图标。"
+	},
+	"image": {
+		"tag": "image",
+		"attributions": [
+			{
+				"label": "src",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "src=\"{{}}\""
+				},
+				"documentation": "图片资源地址"
+			},
+			{
+				"label": "mode",
+				"type": "String",
+				"default": "scaleToFill",
+				"insertText": {
+					"value": "mode=\"{{scaleToFill}}\""
+				},
+				"documentation": "图片裁剪、缩放的模式"
+			},
+			{
+				"label": "onError",
+				"type": "HandleEvent",
+				"default": "",
+				"insertText": {
+					"value": "onError=\"{{}}\""
+				},
+				"documentation": "当错误发生时，发布到 AppService 的事件名，事件对象event.detail = {errMsg: 'something wrong'}"
+			},
+			{
+				"label": "onLoad",
+				"type": "HandleEvent",
+				"default": "",
+				"insertText": {
+					"value": "onLoad=\"{{}}\""
+				},
+				"documentation": "当图片载入完毕时，发布到 AppService 的事件名，事件对象event.detail = {height:'图片高度px', width:'图片宽度px'}"
+			}
+		],
+		"mode": null,
+		"desc": "图片。"
+	},
+	"input": {
+		"tag": "input",
+		"attributions": [
+			{
+				"label": "value",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "value=\"{{}}\""
+				},
+				"documentation": "输入框的初始内容"
+			},
+			{
+				"label": "type",
+				"type": "String",
+				"default": "text",
+				"insertText": {
+					"value": "type=\"{{text}}\""
+				},
+				"documentation": "input 的类型，有效值：text, number, idcard, digit"
+			},
+			{
+				"label": "password",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "password=\"{{}}\""
+				},
+				"documentation": "是否是密码类型"
+			},
+			{
+				"label": "placeholder",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "placeholder=\"{{}}\""
+				},
+				"documentation": "输入框占位符"
+			},
+			{
+				"label": "disabled",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "disabled=\"{{}}\""
+				},
+				"documentation": "是否禁用"
+			},
+			{
+				"label": "maxlength",
+				"type": "Number",
+				"default": "140",
+				"insertText": {
+					"value": "maxlength=\"{{140}}\""
+				},
+				"documentation": "最大输入长度"
+			},
+			{
+				"label": "focus",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "focus=\"{{}}\""
+				},
+				"documentation": "获取焦点"
+			},
+			{
+				"label": "onInput",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onInput=\"{{}}\""
+				},
+				"documentation": "当键盘输入时，触发input事件，event.detail = {value: value}"
+			},
+			{
+				"label": "onConfirm",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onConfirm=\"{{}}\""
+				},
+				"documentation": "当点击键盘完成时触发，event.detail = {value: value}"
+			},
+			{
+				"label": "onFocus",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onFocus=\"{{}}\""
+				},
+				"documentation": "输入框聚焦时触发，event.detail = {value: value}"
+			},
+			{
+				"label": "onBlur",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onBlur=\"{{}}\""
+				},
+				"documentation": "输入框失去焦点时触发，event.detail = {value: value}"
+			}
+		],
+		"mode": null,
+		"desc": "输入框。"
+	},
+	"label": {
+		"tag": "label",
+		"attributions": [
+			{
+				"label": "for",
+				"type": "String",
+				"default": "绑定控件的 id",
+				"insertText": {
+					"value": "for=\"{{绑定控件的 id}}\""
+				},
+				"documentation": null
+			}
+		],
+		"mode": null,
+		"desc": "用来改进表单组件的可用性，使用for属性找到对应的id，或者将控件放在该标签下，当点击时，就会触发对应的控件。"
+	},
+	"map": {
+		"tag": "map",
+		"attributions": [
+			{
+				"label": "longitude",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "longitude=\"{{}}\""
+				},
+				"documentation": "中心经度"
+			},
+			{
+				"label": "latitude",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "latitude=\"{{}}\""
+				},
+				"documentation": "中心纬度"
+			},
+			{
+				"label": "scale",
+				"type": "Number",
+				"default": "16",
+				"insertText": {
+					"value": "scale=\"{{16}}\""
+				},
+				"documentation": "缩放级别，取值范围为5-18"
+			},
+			{
+				"label": "markers",
+				"type": "Array",
+				"default": "",
+				"insertText": {
+					"value": "markers=\"{{}}\""
+				},
+				"documentation": "标记点"
+			},
+			{
+				"label": "polyline",
+				"type": "Array",
+				"default": "",
+				"insertText": {
+					"value": "polyline=\"{{}}\""
+				},
+				"documentation": "路线"
+			},
+			{
+				"label": "circles",
+				"type": "Array",
+				"default": "",
+				"insertText": {
+					"value": "circles=\"{{}}\""
+				},
+				"documentation": "圆"
+			},
+			{
+				"label": "controls",
+				"type": "Array",
+				"default": "",
+				"insertText": {
+					"value": "controls=\"{{}}\""
+				},
+				"documentation": "控件"
+			},
+			{
+				"label": "polygon",
+				"type": "Array",
+				"default": "",
+				"insertText": {
+					"value": "polygon=\"{{}}\""
+				},
+				"documentation": "多边形"
+			},
+			{
+				"label": "include-points",
+				"type": "Array",
+				"default": "",
+				"insertText": {
+					"value": "include-points=\"{{}}\""
+				},
+				"documentation": "缩放视野以包含所有给定的坐标点"
+			},
+			{
+				"label": "show-location",
+				"type": "Boolean",
+				"default": "",
+				"insertText": {
+					"value": "show-location=\"{{}}\""
+				},
+				"documentation": "显示带有方向的当前定位点"
+			},
+			{
+				"label": "onMarkerTap",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onMarkerTap=\"{{}}\""
+				},
+				"documentation": "点击标记点时触发"
+			},
+			{
+				"label": "onControlTap",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onControlTap=\"{{}}\""
+				},
+				"documentation": "点击控件时触发"
+			},
+			{
+				"label": "onRegionChange",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onRegionChange=\"{{}}\""
+				},
+				"documentation": "视野发生变化时触发"
+			},
+			{
+				"label": "onTap",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onTap=\"{{}}\""
+				},
+				"documentation": "点击地图时触发"
+			}
+		],
+		"mode": null,
+		"desc": "地图。"
+	},
+	"navigator": {
+		"tag": "navigator",
+		"attributions": [
+			{
+				"label": "hover-class",
+				"type": "String",
+				"default": "none",
+				"insertText": {
+					"value": "hover-class=\"{{none}}\""
+				},
+				"documentation": "点击时附加的类"
+			},
+			{
+				"label": "hover-start-time",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "hover-start-time=\"{{}}\""
+				},
+				"documentation": "按住后多久出现点击态，单位毫秒"
+			},
+			{
+				"label": "hover-stay-time",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "hover-stay-time=\"{{}}\""
+				},
+				"documentation": "手指松开后点击态保留时间，单位毫秒"
+			},
+			{
+				"label": "url",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "url=\"{{}}\""
+				},
+				"documentation": "应用内的跳转链接"
+			},
+			{
+				"label": "open-type",
+				"type": "String",
+				"default": "navigate",
+				"insertText": {
+					"value": "open-type=\"{{navigate}}\""
+				},
+				"documentation": "跳转方式"
+			}
+		],
+		"mode": null,
+		"desc": "页面链接。"
+	},
+	"picker-view": {
+		"tag": "picker-view",
+		"attributions": [
+			{
+				"label": "value",
+				"type": "Number Array",
+				"default": "",
+				"insertText": {
+					"value": "value=\"{{}}\""
+				},
+				"documentation": "数组中的数字依次表示 picker-view 内的 picker-view-column 选择的第几项（下标从 0 开始），数字大于 picker-view-column 可选项长度时，选择最后一项。"
+			},
+			{
+				"label": "indicatorStyle",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "indicatorStyle=\"{{}}\""
+				},
+				"documentation": "设置选择器中间选中框的样式"
+			},
+			{
+				"label": "onChange",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onChange=\"{{}}\""
+				},
+				"documentation": "当滚动选择，value 改变时触发 change 事件，event.detail = {value: value}；value为数组，表示 picker-view 内的 picker-view-column 当前选择的是第几项（下标从 0 开始）"
+			}
+		],
+		"mode": null,
+		"desc": "嵌入页面的滚动选择器。"
+	},
+	"picker": {
+		"tag": "picker",
+		"attributions": [
+			{
+				"label": "value",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "value=\"{{}}\""
+				},
+				"documentation": "表示选中的日期，格式为\"YYYY-MM-DD\""
+			},
+			{
+				"label": "start",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "start=\"{{}}\""
+				},
+				"documentation": "表示有效日期范围的开始，字符串格式为\"YYYY-MM-DD\""
+			},
+			{
+				"label": "end",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "end=\"{{}}\""
+				},
+				"documentation": "表示有效日期范围的结束，字符串格式为\"YYYY-MM-DD\""
+			},
+			{
+				"label": "fields",
+				"type": "String",
+				"default": "day",
+				"insertText": {
+					"value": "fields=\"{{day}}\""
+				},
+				"documentation": "有效值 year,month,day，表示选择器的粒度"
+			},
+			{
+				"label": "onChange",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onChange=\"{{}}\""
+				},
+				"documentation": "value 改变时触发 change 事件，event.detail = {value: value}"
+			},
+			{
+				"label": "disabled",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "disabled=\"{{}}\""
+				},
+				"documentation": "是否禁用"
+			}
+		],
+		"mode": "date",
+		"desc": "日期选择器：mode = date"
+	},
+	"progress": {
+		"tag": "progress",
+		"attributions": [
+			{
+				"label": "percent",
+				"type": "Float",
+				"default": "",
+				"insertText": {
+					"value": "percent=\"{{}}\""
+				},
+				"documentation": "百分比0~100"
+			},
+			{
+				"label": "show-info",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "show-info=\"{{}}\""
+				},
+				"documentation": "在进度条右侧显示百分比"
+			},
+			{
+				"label": "stroke-width",
+				"type": "Number",
+				"default": "6",
+				"insertText": {
+					"value": "stroke-width=\"{{6}}\""
+				},
+				"documentation": "进度条线的宽度，单位px"
+			},
+			{
+				"label": "color",
+				"type": "Color",
+				"default": "#09BB07",
+				"insertText": {
+					"value": "color=\"{{#09BB07}}\""
+				},
+				"documentation": "进度条颜色 （请使用 activeColor）"
+			},
+			{
+				"label": "activeColor",
+				"type": "Color",
+				"default": "#09BB07",
+				"insertText": {
+					"value": "activeColor=\"{{#09BB07}}\""
+				},
+				"documentation": "已选择的进度条的颜色"
+			},
+			{
+				"label": "backgroundColor",
+				"type": "Color",
+				"default": "",
+				"insertText": {
+					"value": "backgroundColor=\"{{}}\""
+				},
+				"documentation": "未选择的进度条的颜色"
+			},
+			{
+				"label": "active",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "active=\"{{}}\""
+				},
+				"documentation": "进度条从左往右的动画"
+			}
+		],
+		"mode": null,
+		"desc": "进度条。"
+	},
+	"radio-group": {
+		"tag": "radio-group",
+		"attributions": [
+			{
+				"label": "onChange",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onChange=\"{{}}\""
+				},
+				"documentation": "<radio-group/> 中的选中项发生变化时触发 change 事件，event.detail = {value: 选中项radio的value}"
+			}
+		],
+		"mode": null,
+		"desc": "单项选择器，内部由多个"
+	},
+	"radio": {
+		"tag": "radio",
+		"attributions": [
+			{
+				"label": "value",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "value=\"{{}}\""
+				},
+				"documentation": [
+					"radio"
+				]
+			},
+			{
+				"label": "checked",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "checked=\"{{}}\""
+				},
+				"documentation": "当前是否选中"
+			},
+			{
+				"label": "disabled",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "disabled=\"{{}}\""
+				},
+				"documentation": "是否禁用"
+			}
+		],
+		"mode": null,
+		"desc": "单选项目"
+	},
+	"scroll-view": {
+		"tag": "scroll-view",
+		"attributions": [
+			{
+				"label": "scroll-x",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "scroll-x=\"{{}}\""
+				},
+				"documentation": "允许横向滚动"
+			},
+			{
+				"label": "scroll-y",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "scroll-y=\"{{}}\""
+				},
+				"documentation": "允许纵向滚动"
+			},
+			{
+				"label": "upper-threshold",
+				"type": "Number",
+				"default": "50",
+				"insertText": {
+					"value": "upper-threshold=\"{{50}}\""
+				},
+				"documentation": "距顶部/左边多远时（单位px），触发 scrolltoupper 事件"
+			},
+			{
+				"label": "lower-threshold",
+				"type": "Number",
+				"default": "50",
+				"insertText": {
+					"value": "lower-threshold=\"{{50}}\""
+				},
+				"documentation": "距底部/右边多远时（单位px），触发 scrolltolower 事件"
+			},
+			{
+				"label": "scroll-top",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "scroll-top=\"{{}}\""
+				},
+				"documentation": "设置竖向滚动条位置"
+			},
+			{
+				"label": "scroll-left",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "scroll-left=\"{{}}\""
+				},
+				"documentation": "设置横向滚动条位置"
+			},
+			{
+				"label": "scroll-into-view",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "scroll-into-view=\"{{}}\""
+				},
+				"documentation": "值应为某子元素id，则滚动到该元素，元素顶部对齐滚动区域顶部"
+			},
+			{
+				"label": "scroll-with-animation",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "scroll-with-animation=\"{{}}\""
+				},
+				"documentation": "在设置滚动条位置时使用动画过渡"
+			},
+			{
+				"label": "onScrollToUpper",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onScrollToUpper=\"{{}}\""
+				},
+				"documentation": "滚动到顶部/左边，会触发 scrolltoupper 事件"
+			},
+			{
+				"label": "onScrollToLower",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onScrollToLower=\"{{}}\""
+				},
+				"documentation": "滚动到底部/右边，会触发 scrolltolower 事件"
+			},
+			{
+				"label": "onScroll",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onScroll=\"{{}}\""
+				},
+				"documentation": "滚动时触发，event.detail = {scrollLeft, scrollTop, scrollHeight, scrollWidth, deltaX, deltaY}"
+			}
+		],
+		"mode": null,
+		"desc": "可滚动视图区域。"
+	},
+	"slider": {
+		"tag": "slider",
+		"attributions": [
+			{
+				"label": "min",
+				"type": "Number",
+				"default": "0",
+				"insertText": {
+					"value": "min=\"{{0}}\""
+				},
+				"documentation": "最小值"
+			},
+			{
+				"label": "max",
+				"type": "Number",
+				"default": "100",
+				"insertText": {
+					"value": "max=\"{{100}}\""
+				},
+				"documentation": "最大值"
+			},
+			{
+				"label": "step",
+				"type": "Number",
+				"default": "1",
+				"insertText": {
+					"value": "step=\"{{1}}\""
+				},
+				"documentation": "步长，取值必须大于 0，并且可被(max - min)整除"
+			},
+			{
+				"label": "disabled",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "disabled=\"{{}}\""
+				},
+				"documentation": "是否禁用"
+			},
+			{
+				"label": "value",
+				"type": "Number",
+				"default": "0",
+				"insertText": {
+					"value": "value=\"{{0}}\""
+				},
+				"documentation": "当前取值"
+			},
+			{
+				"label": "show-value",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "show-value=\"{{}}\""
+				},
+				"documentation": "是否显示当前 value"
+			},
+			{
+				"label": "activeColor",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "activeColor=\"{{}}\""
+				},
+				"documentation": "已选择的颜色"
+			},
+			{
+				"label": "backgroundColor",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "backgroundColor=\"{{}}\""
+				},
+				"documentation": "背景条的颜色"
+			},
+			{
+				"label": "trackSize",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "trackSize=\"{{}}\""
+				},
+				"documentation": "轨道线条高度"
+			},
+			{
+				"label": "handleSize",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "handleSize=\"{{}}\""
+				},
+				"documentation": "滑块大小"
+			},
+			{
+				"label": "handleColor",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "handleColor=\"{{}}\""
+				},
+				"documentation": "滑块填充色"
+			},
+			{
+				"label": "onChange",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onChange=\"{{}}\""
+				},
+				"documentation": "完成一次拖动后触发的事件，event.detail = {value: value}"
+			}
+		],
+		"mode": null,
+		"desc": "滑动选择器"
+	},
+	"swiper": {
+		"tag": "swiper",
+		"attributions": [
+			{
+				"label": "indicator-dots",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "indicator-dots=\"{{}}\""
+				},
+				"documentation": "是否显示面板指示点"
+			},
+			{
+				"label": "indicator-color",
+				"type": "Color",
+				"default": "rgba(0, 0, 0, .3)",
+				"insertText": {
+					"value": "indicator-color=\"{{rgba(0, 0, 0, .3)}}\""
+				},
+				"documentation": "指示点颜色"
+			},
+			{
+				"label": "indicator-active-color",
+				"type": "Color",
+				"default": "#000",
+				"insertText": {
+					"value": "indicator-active-color=\"{{#000}}\""
+				},
+				"documentation": "当前选中的指示点颜色"
+			},
+			{
+				"label": "autoplay",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "autoplay=\"{{}}\""
+				},
+				"documentation": "是否自动切换"
+			},
+			{
+				"label": "current",
+				"type": "Number",
+				"default": "0",
+				"insertText": {
+					"value": "current=\"{{0}}\""
+				},
+				"documentation": "当前所在页面的 index"
+			},
+			{
+				"label": "duration",
+				"type": "Number",
+				"default": "500",
+				"insertText": {
+					"value": "duration=\"{{500}}\""
+				},
+				"documentation": "滑动动画时长"
+			},
+			{
+				"label": "interval",
+				"type": "Number",
+				"default": "5000",
+				"insertText": {
+					"value": "interval=\"{{5000}}\""
+				},
+				"documentation": "自动切换时间间隔"
+			},
+			{
+				"label": "circular",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "circular=\"{{}}\""
+				},
+				"documentation": "是否采用衔接滑动"
+			},
+			{
+				"label": "onChange",
+				"type": "Function",
+				"default": "否",
+				"insertText": {
+					"value": "onChange=\"{{否}}\""
+				},
+				"documentation": "current 改变时会触发 change 事件，event.detail = {current: current}"
+			}
+		],
+		"mode": null,
+		"desc": "滑块视图容器。"
+	},
+	"switch": {
+		"tag": "switch",
+		"attributions": [
+			{
+				"label": "checked",
+				"type": "Boolean",
+				"default": "",
+				"insertText": {
+					"value": "checked=\"{{}}\""
+				},
+				"documentation": "是否选中"
+			},
+			{
+				"label": "disabled",
+				"type": "Boolean",
+				"default": "",
+				"insertText": {
+					"value": "disabled=\"{{}}\""
+				},
+				"documentation": "是否禁用"
+			},
+			{
+				"label": "onChange",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onChange=\"{{}}\""
+				},
+				"documentation": "checked 改变时触发 change 事件，event.detail={ value:checked}"
+			}
+		],
+		"mode": null,
+		"desc": "单选项目"
+	},
+	"text": {
+		"tag": "text",
+		"attributions": [
+			{
+				"label": "selectable",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "selectable=\"{{}}\""
+				},
+				"documentation": "文本是否可选"
+			}
+		],
+		"mode": null,
+		"desc": "文本。"
+	},
+	"textarea": {
+		"tag": "textarea",
+		"attributions": [
+			{
+				"label": "value",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "value=\"{{}}\""
+				},
+				"documentation": "输入框的初始内容"
+			},
+			{
+				"label": "placeholder",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "placeholder=\"{{}}\""
+				},
+				"documentation": "输入框占位符"
+			},
+			{
+				"label": "disabled",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "disabled=\"{{}}\""
+				},
+				"documentation": "是否禁用"
+			},
+			{
+				"label": "maxlength",
+				"type": "Number",
+				"default": "140",
+				"insertText": {
+					"value": "maxlength=\"{{140}}\""
+				},
+				"documentation": "最大输入长度"
+			},
+			{
+				"label": "auto-focus",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "auto-focus=\"{{}}\""
+				},
+				"documentation": "自动聚焦"
+			},
+			{
+				"label": "focus",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "focus=\"{{}}\""
+				},
+				"documentation": "获取焦点"
+			},
+			{
+				"label": "auto-height",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "auto-height=\"{{}}\""
+				},
+				"documentation": "是否自动增高"
+			},
+			{
+				"label": "onInput",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onInput=\"{{}}\""
+				},
+				"documentation": "当键盘输入时，触发input事件，event.detail = {value: value}，处理函数可以直接 return 一个字符串，将替换输入框的内容。"
+			},
+			{
+				"label": "onFocus",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onFocus=\"{{}}\""
+				},
+				"documentation": "输入框聚焦时触发，event.detail = {value: value}"
+			},
+			{
+				"label": "onBlur",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onBlur=\"{{}}\""
+				},
+				"documentation": "输入框失去焦点时触发，event.detail = {value: value}"
+			},
+			{
+				"label": "onConfirm",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onConfirm=\"{{}}\""
+				},
+				"documentation": "点击完成时， 触发 confirm 事件，event.detail = {value: value}"
+			}
+		],
+		"mode": null,
+		"desc": "输入框。"
+	},
+	"video": {
+		"tag": "video",
+		"attributions": [
+			{
+				"label": "src",
+				"type": "String",
+				"default": "",
+				"insertText": {
+					"value": "src=\"{{}}\""
+				},
+				"documentation": "要播放视频的资源地址"
+			},
+			{
+				"label": "controls",
+				"type": "Boolean",
+				"default": "true",
+				"insertText": {
+					"value": "controls=\"{{}}\""
+				},
+				"documentation": "是否显示默认播放控件（播放/暂停按钮、播放进度、时间）"
+			},
+			{
+				"label": "autoplay",
+				"type": "Boolean",
+				"default": "false",
+				"insertText": {
+					"value": "autoplay=\"{{}}\""
+				},
+				"documentation": "是否自动播放"
+			},
+			{
+				"label": "duration",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "duration=\"{{}}\""
+				},
+				"documentation": "指定视频时长，到点会暂停播放"
+			},
+			{
+				"label": "onPlay",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onPlay=\"{{}}\""
+				},
+				"documentation": "当开始/继续播放时触发play事件"
+			},
+			{
+				"label": "onPause",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onPause=\"{{}}\""
+				},
+				"documentation": "当暂停播放时触发 pause 事件"
+			},
+			{
+				"label": "onEnded",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onEnded=\"{{}}\""
+				},
+				"documentation": "当播放到末尾时触发 ended 事件"
+			},
+			{
+				"label": "onTimeUpdate",
+				"type": "EventHandle",
+				"default": "",
+				"insertText": {
+					"value": "onTimeUpdate=\"{{}}\""
+				},
+				"documentation": "播放进度变化时触发，event.detail = {currentTime: '当前播放时间'} 。触发频率应该在 250ms 一次"
+			},
+			{
+				"label": "objectFit",
+				"type": "String",
+				"default": "contain",
+				"insertText": {
+					"value": "objectFit=\"{{contain}}\""
+				},
+				"documentation": "当视频大小与 video 容器大小不一致时，视频的表现形式。contain：包含，fill：填充，cover：覆盖video标签认宽度300px、高度225px，设置宽高需要通过abridgess设置width和height。"
+			},
+			{
+				"label": "poster",
+				"type": "String",
+				"default": "contain",
+				"insertText": {
+					"value": "poster=\"{{contain}}\""
+				},
+				"documentation": "默认控件上的封面的图片资源地址"
+			}
+		],
+		"mode": null,
+		"desc": "视频。"
+	},
+	"view": {
+		"tag": "view",
+		"attributions": [
+			{
+				"label": "hover-class",
+				"type": "String",
+				"default": "none",
+				"insertText": {
+					"value": "hover-class=\"{{none}}\""
+				},
+				"documentation": "点击时附加的类"
+			},
+			{
+				"label": "hover-start-time",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "hover-start-time=\"{{}}\""
+				},
+				"documentation": "按住后多久出现点击态，单位毫秒"
+			},
+			{
+				"label": "hover-stay-time",
+				"type": "Number",
+				"default": "",
+				"insertText": {
+					"value": "hover-stay-time=\"{{}}\""
+				},
+				"documentation": "手指松开后点击态保留时间，单位毫秒"
+			},
+			{
+				"label": "hidden",
+				"type": "boolean",
+				"default": "false",
+				"insertText": {
+					"value": "hidden=\"{{false}}\""
+				},
+				"documentation": "是否隐藏"
+			}
+		],
+		"mode": null,
+		"desc": "视图容器。相当于 web 的 div 或者 react-native 的 View。"
+	}
+};
+
+/***/ }),
 /* 116 */
 /***/ (function(module, exports) {
 
 module.exports = require("electron");
-
-/***/ }),
-/* 117 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-var _assign = __webpack_require__(46);
-
-var _assign2 = _interopRequireDefault(_assign);
-
-var _keys = __webpack_require__(47);
-
-var _keys2 = _interopRequireDefault(_keys);
-
-var _weakMap = __webpack_require__(48);
-
-var _weakMap2 = _interopRequireDefault(_weakMap);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var getData = __webpack_require__(62);
-var getTinyData = __webpack_require__(118);
-var nodeId = 3;
-var reactRootElement = null;
-var elementMapping = null;
-function attachRenderer(bridge, rid, renderer) {
-    var extras = {};
-    // only support React Dom 15+
-    // 由于我们不需要向下兼容，所以只需要考虑15+的api
-    if (renderer.ComponentTree) {
-        extras.getNativeFromReactElement = function (component) {
-            return renderer.ComponentTree.getNodeFromInstance(component);
-        };
-        extras.getReactElementFromNative = function (node) {
-            return renderer.ComponentTree.getClosestInstanceFromNode(node);
-        };
-    }
-    // currentComponent到react dom instance的映射
-    extras.mapCurrentComponentToElement = function () {
-        var root = reactRootElement;
-        var map = new _weakMap2.default();
-        if (root) {
-            makeMapping(map, root);
-            return map;
-        }
-        return false;
-    };
-    // 这里是根据compoennt的props来生成树的
-    // 由于component不含有任何的react runtime api，所以我们需要上面的映射
-    extras.rebuildTinyTree = function (ids, mapping) {
-        var root = reactRootElement;
-        var tree = [];
-        tree.push({
-            backendNodeId: 3,
-            localName: '',
-            nodeId: 2,
-            nodeName: 'axml',
-            nodeType: 10,
-            nodeValue: '',
-            publicId: '',
-            systemId: ''
-        });
-        if (root) {
-            scanNode.bind({ mapping: mapping })(tree, root._currentElement.props.children, ids, [0]);
-            return tree;
-        }
-        return false;
-    };
-    // 这个函数用于找到 page 的 dom
-    extras.initRoots = function initRoots() {
-        var roots = renderer.Mount._instancesByReactRootID;
-        nodeId = 3;
-        for (var i in roots) {
-            var root = roots[i];
-            if (root && root._hostContainerInfo && root._hostContainerInfo._node) {
-                if (root._hostContainerInfo._node.id === '__react-content') {
-                    if (root._renderedComponent && root._renderedComponent._renderedComponent) reactRootElement = root._renderedComponent._renderedComponent;
-                }
-            }
-        }
-    };
-    return extras;
-}
-// 将object和string都normalize成数组的形势
-var normalize = function normalize(children) {
-    if (!children) return null;
-    if (Array.isArray(children)) {
-        return children;
-    }
-    return [children];
-};
-// 遍历生成component -> instance的weakmap
-// key: compoennt; value: instance
-function makeMapping(map, element) {
-    var data = getData(element);
-    var normalized = normalize(data.children);
-    if (normalized) {
-        if (data.nodeType === 'Composite') {
-            map.set(element._currentElement, element);
-        }
-        normalized.forEach(function (child) {
-            makeMapping(map, child);
-        });
-    }
-    elementMapping = map;
-}
-// 遍历component的props.children，生成实际显示的dom tree
-function scanNode(tree, element, ids, guids) {
-    var data = getTinyData(element, elementMapping);
-    if (!data) return;
-    var length = guids.length;
-    var node = newNode({
-        name: data.name,
-        props: data.props,
-        nodeType: 1,
-        nodeValue: ''
-    });
-    if (node.localName === 'root-wrapper') {
-        var realReactElement = data.real;
-        var _reactRootElement = realReactElement._renderedComponent._currentElement;
-        scanNode(tree, _reactRootElement, ids, guids);
-    } else if (Array.isArray(element)) {
-        element.forEach(function (el, i) {
-            scanNode(tree, el, ids, guids.concat([i]));
-        });
-    } else if (data.children) {
-        data.children.forEach(function (child, i) {
-            if (typeof child !== 'string') {
-                scanNode(node.children, child, ids, guids.concat([i]));
-            }
-        });
-        ids[node.nodeId] = {
-            element: element,
-            node: node
-        };
-        var completeNode = setChildren(node, data.children);
-        tree.push(completeNode);
-    }
-}
-function newNode(_ref) {
-    var name = _ref.name,
-        nodeType = _ref.nodeType,
-        nodeValue = _ref.nodeValue,
-        props = _ref.props;
-
-    var attributes = [];
-    (0, _keys2.default)(props || {}).forEach(function (key) {
-        attributes.push(key);
-        attributes.push(typeof props[key] === 'string' ? props[key] : '{{' + String(props[key]) + '}}');
-    });
-    return {
-        attributes: attributes,
-        nodeName: (name || '').toUpperCase(),
-        localName: (name || '').toLowerCase(),
-        nodeType: nodeType,
-        nodeId: nodeId,
-        backendNodeId: ++nodeId,
-        nodeValue: nodeValue,
-        children: []
-    };
-}
-function setChildren(node, children) {
-    return (0, _assign2.default)({}, node, {
-        childNodeCount: children.length
-    });
-}
-function handleTemplateTag() {}
-module.exports = attachRenderer;
-
-/***/ }),
-/* 118 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _keys = __webpack_require__(47);
-
-var _keys2 = _interopRequireDefault(_keys);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var normalize = function normalize(children) {
-    if (Array.isArray(children)) {
-        return children;
-    }
-    return [children];
-};
-
-exports.default = function (element, mapping) {
-    var props = {};
-    if (!element || !element.props) return element;
-    var name = element.props.$tag;
-    var realReactElement = mapping.get(element);
-    var children = normalize(element.props.children);
-    (0, _keys2.default)(element.props).forEach(function (prop) {
-        if (!(typeof element.props[prop] === 'function' || prop === 'children' || prop === '$tag')) {
-            props[prop] = element.props[prop];
-        }
-    });
-    if (!name) {
-        if (realReactElement && realReactElement._renderedComponent && realReactElement._renderedComponent._renderedComponent) {
-            var _currentElement = realReactElement._renderedComponent._renderedComponent._currentElement;
-            if (_currentElement.ref === 'root') {
-                name = 'root-wrapper';
-            }
-        }
-    }
-    return {
-        name: name,
-        props: props,
-        children: children,
-        real: realReactElement
-    };
-};
-
-module.exports = exports['default'];
-
-/***/ }),
-/* 119 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/**
- * Copyright (c) 2015-present, Facebook, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
- *
- * @flow
- */
-
-
-var _classCallCheck2 = __webpack_require__(121);
-
-var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
-
-var _createClass2 = __webpack_require__(122);
-
-var _createClass3 = _interopRequireDefault(_createClass2);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var assign = __webpack_require__(125);
-
-var Overlay = function () {
-    function Overlay(window) {
-        (0, _classCallCheck3.default)(this, Overlay);
-
-        var doc = window.document;
-        this.win = window;
-        this.container = doc.createElement('div');
-        this.node = doc.createElement('div');
-        this.border = doc.createElement('div');
-        this.padding = doc.createElement('div');
-        this.content = doc.createElement('div');
-        this.border.style.borderColor = overlayStyles.border;
-        this.padding.style.borderColor = overlayStyles.padding;
-        this.content.style.backgroundColor = overlayStyles.background;
-        assign(this.node.style, {
-            borderColor: overlayStyles.margin,
-            pointerEvents: 'none',
-            position: 'fixed'
-        });
-        this.tip = doc.createElement('div');
-        assign(this.tip.style, {
-            border: '1px solid #aaa',
-            backgroundColor: 'rgb(255, 255, 178)',
-            fontFamily: 'sans-serif',
-            color: 'orange',
-            padding: '3px 5px',
-            position: 'fixed',
-            fontSize: '10px'
-        });
-        this.nameSpan = doc.createElement('span');
-        this.tip.appendChild(this.nameSpan);
-        assign(this.nameSpan.style, {
-            color: 'rgb(136, 18, 128)',
-            marginRight: '5px'
-        });
-        this.dimSpan = doc.createElement('span');
-        this.tip.appendChild(this.dimSpan);
-        assign(this.dimSpan.style, {
-            color: '#888'
-        });
-        this.container.style.zIndex = 10000000;
-        this.node.style.zIndex = 10000000;
-        this.tip.style.zIndex = 10000000;
-        this.container.appendChild(this.node);
-        this.container.appendChild(this.tip);
-        this.node.appendChild(this.border);
-        this.border.appendChild(this.padding);
-        this.padding.appendChild(this.content);
-        doc.body.appendChild(this.container);
-    }
-
-    (0, _createClass3.default)(Overlay, [{
-        key: 'remove',
-        value: function remove() {
-            if (this.container.parentNode) {
-                this.container.parentNode.removeChild(this.container);
-            }
-        }
-    }, {
-        key: 'inspect',
-        value: function inspect(node, name, string) {
-            // We can't get the size of text nodes or comment nodes. React as of v15
-            // heavily uses comment nodes to delimit text.
-            if (node.nodeType !== Node.ELEMENT_NODE) {
-                return;
-            }
-            var box = node.getBoundingClientRect();
-            var dims = getElementDimensions(node);
-            boxWrap(dims, 'margin', this.node);
-            boxWrap(dims, 'border', this.border);
-            boxWrap(dims, 'padding', this.padding);
-            assign(this.content.style, {
-                height: box.height - dims.borderTop - dims.borderBottom - dims.paddingTop - dims.paddingBottom + 'px',
-                width: box.width - dims.borderLeft - dims.borderRight - dims.paddingLeft - dims.paddingRight + 'px'
-            });
-            assign(this.node.style, {
-                top: box.top - dims.marginTop + 'px',
-                left: box.left - dims.marginLeft + 'px'
-            });
-            this.nameSpan.textContent = name || node.nodeName.toLowerCase();
-            this.dimSpan.textContent = box.width + 'px × ' + box.height + 'px';
-            var tipPos = findTipPos({
-                top: box.top - dims.marginTop,
-                left: box.left - dims.marginLeft,
-                height: box.height + dims.marginTop + dims.marginBottom,
-                width: box.width + dims.marginLeft + dims.marginRight
-            }, this.win);
-            assign(this.tip.style, tipPos);
-        }
-    }]);
-    return Overlay;
-}();
-
-function findTipPos(dims, win) {
-    var tipHeight = 20;
-    var margin = 5;
-    var top;
-    if (dims.top + dims.height + tipHeight <= win.innerHeight) {
-        if (dims.top + dims.height < 0) {
-            top = margin;
-        } else {
-            top = dims.top + dims.height + margin;
-        }
-    } else if (dims.top - tipHeight <= win.innerHeight) {
-        if (dims.top - tipHeight - margin < margin) {
-            top = margin;
-        } else {
-            top = dims.top - tipHeight - margin;
-        }
-    } else {
-        top = win.innerHeight - tipHeight - margin;
-    }
-    top += 'px';
-    if (dims.left < 0) {
-        return { top: top, left: margin };
-    }
-    if (dims.left + 200 > win.innerWidth) {
-        return { top: top, right: margin };
-    }
-    return { top: top, left: dims.left + margin + 'px' };
-}
-function getElementDimensions(element) {
-    var calculatedStyle = window.getComputedStyle(element);
-    return {
-        borderLeft: +calculatedStyle.borderLeftWidth.match(/[0-9]*/)[0],
-        borderRight: +calculatedStyle.borderRightWidth.match(/[0-9]*/)[0],
-        borderTop: +calculatedStyle.borderTopWidth.match(/[0-9]*/)[0],
-        borderBottom: +calculatedStyle.borderBottomWidth.match(/[0-9]*/)[0],
-        marginLeft: +calculatedStyle.marginLeft.match(/[0-9]*/)[0],
-        marginRight: +calculatedStyle.marginRight.match(/[0-9]*/)[0],
-        marginTop: +calculatedStyle.marginTop.match(/[0-9]*/)[0],
-        marginBottom: +calculatedStyle.marginBottom.match(/[0-9]*/)[0],
-        paddingLeft: +calculatedStyle.paddingLeft.match(/[0-9]*/)[0],
-        paddingRight: +calculatedStyle.paddingRight.match(/[0-9]*/)[0],
-        paddingTop: +calculatedStyle.paddingTop.match(/[0-9]*/)[0],
-        paddingBottom: +calculatedStyle.paddingBottom.match(/[0-9]*/)[0]
-    };
-}
-function boxWrap(dims, what, node) {
-    assign(node.style, {
-        borderTopWidth: dims[what + 'Top'] + 'px',
-        borderLeftWidth: dims[what + 'Left'] + 'px',
-        borderRightWidth: dims[what + 'Right'] + 'px',
-        borderBottomWidth: dims[what + 'Bottom'] + 'px',
-        borderStyle: 'solid'
-    });
-}
-var overlayStyles = {
-    background: 'rgba(120, 170, 210, 0.7)',
-    padding: 'rgba(77, 200, 0, 0.3)',
-    margin: 'rgba(255, 155, 0, 0.3)',
-    border: 'rgba(255, 200, 50, 0.3)'
-};
-module.exports = Overlay;
-
-/***/ }),
-/* 120 */
-/***/ (function(module, exports, __webpack_require__) {
-
-module.exports = { "default": __webpack_require__(123), __esModule: true };
-
-/***/ }),
-/* 121 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-exports.__esModule = true;
-
-exports.default = function (instance, Constructor) {
-  if (!(instance instanceof Constructor)) {
-    throw new TypeError("Cannot call a class as a function");
-  }
-};
-
-/***/ }),
-/* 122 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-exports.__esModule = true;
-
-var _defineProperty = __webpack_require__(120);
-
-var _defineProperty2 = _interopRequireDefault(_defineProperty);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-exports.default = function () {
-  function defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];
-      descriptor.enumerable = descriptor.enumerable || false;
-      descriptor.configurable = true;
-      if ("value" in descriptor) descriptor.writable = true;
-      (0, _defineProperty2.default)(target, descriptor.key, descriptor);
-    }
-  }
-
-  return function (Constructor, protoProps, staticProps) {
-    if (protoProps) defineProperties(Constructor.prototype, protoProps);
-    if (staticProps) defineProperties(Constructor, staticProps);
-    return Constructor;
-  };
-}();
-
-/***/ }),
-/* 123 */
-/***/ (function(module, exports, __webpack_require__) {
-
-__webpack_require__(124);
-var $Object = __webpack_require__(0).Object;
-module.exports = function defineProperty(it, key, desc){
-  return $Object.defineProperty(it, key, desc);
-};
-
-/***/ }),
-/* 124 */
-/***/ (function(module, exports, __webpack_require__) {
-
-var $export = __webpack_require__(6);
-// 19.1.2.4 / 15.2.3.6 Object.defineProperty(O, P, Attributes)
-$export($export.S + $export.F * !__webpack_require__(3), 'Object', {defineProperty: __webpack_require__(4).f});
-
-/***/ }),
-/* 125 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/*
-object-assign
-(c) Sindre Sorhus
-@license MIT
-*/
-
-
-/* eslint-disable no-unused-vars */
-var getOwnPropertySymbols = Object.getOwnPropertySymbols;
-var hasOwnProperty = Object.prototype.hasOwnProperty;
-var propIsEnumerable = Object.prototype.propertyIsEnumerable;
-
-function toObject(val) {
-	if (val === null || val === undefined) {
-		throw new TypeError('Object.assign cannot be called with null or undefined');
-	}
-
-	return Object(val);
-}
-
-function shouldUseNative() {
-	try {
-		if (!Object.assign) {
-			return false;
-		}
-
-		// Detect buggy property enumeration order in older V8 versions.
-
-		// https://bugs.chromium.org/p/v8/issues/detail?id=4118
-		var test1 = new String('abc');  // eslint-disable-line no-new-wrappers
-		test1[5] = 'de';
-		if (Object.getOwnPropertyNames(test1)[0] === '5') {
-			return false;
-		}
-
-		// https://bugs.chromium.org/p/v8/issues/detail?id=3056
-		var test2 = {};
-		for (var i = 0; i < 10; i++) {
-			test2['_' + String.fromCharCode(i)] = i;
-		}
-		var order2 = Object.getOwnPropertyNames(test2).map(function (n) {
-			return test2[n];
-		});
-		if (order2.join('') !== '0123456789') {
-			return false;
-		}
-
-		// https://bugs.chromium.org/p/v8/issues/detail?id=3056
-		var test3 = {};
-		'abcdefghijklmnopqrst'.split('').forEach(function (letter) {
-			test3[letter] = letter;
-		});
-		if (Object.keys(Object.assign({}, test3)).join('') !==
-				'abcdefghijklmnopqrst') {
-			return false;
-		}
-
-		return true;
-	} catch (err) {
-		// We don't expect any of the above to throw, but better to be safe.
-		return false;
-	}
-}
-
-module.exports = shouldUseNative() ? Object.assign : function (target, source) {
-	var from;
-	var to = toObject(target);
-	var symbols;
-
-	for (var s = 1; s < arguments.length; s++) {
-		from = Object(arguments[s]);
-
-		for (var key in from) {
-			if (hasOwnProperty.call(from, key)) {
-				to[key] = from[key];
-			}
-		}
-
-		if (getOwnPropertySymbols) {
-			symbols = getOwnPropertySymbols(from);
-			for (var i = 0; i < symbols.length; i++) {
-				if (propIsEnumerable.call(from, symbols[i])) {
-					to[symbols[i]] = from[symbols[i]];
-				}
-			}
-		}
-	}
-
-	return to;
-};
-
 
 /***/ })
 /******/ ]);

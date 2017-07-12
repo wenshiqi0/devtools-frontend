@@ -15,7 +15,22 @@ Ant.TinyConnection = class {
     });
 
     const extraMessageHandler = {
-
+      propsModified: ({ nodeId, props }) => {
+        if (nodeId)
+          Ant.targetManager.getCurrentModel().propsModified(nodeId, props);
+      }
     };
   }
 };
+
+Ant.globalMessageHandler = {
+  switchTarget: () => {
+    Ant.targetManager.switchTarget();
+  },
+};
+
+window.listenToHost('render', (event, args) => {
+  const { method, payload } = args;
+  if (Ant.globalMessageHandler[method])
+    Ant.globalMessageHandler[method](payload);
+});

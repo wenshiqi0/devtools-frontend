@@ -35,9 +35,9 @@ SDK.CSSModel = class extends SDK.SDKModel {
   /**
    * @param {!SDK.Target} target
    */
-  constructor(target) {
+  constructor(target, model) {
     super(target);
-    this._domModel = /** @type {!SDK.DOMModel} */ (target.model(SDK.DOMModel));
+    this._domModel = /** @type {!SDK.DOMModel} */ model ? model : (target.model(SDK.DOMModel));
     /** @type {!SDK.SourceMapManager<!SDK.CSSStyleSheetHeader>} */
     this._sourceMapManager = new SDK.SourceMapManager(target);
     this._agent = target.cssAgent();
@@ -369,6 +369,10 @@ SDK.CSSModel = class extends SDK.SDKModel {
         error, inlinePayload, attributesPayload, matchedPayload, pseudoPayload, inheritedPayload, animationsPayload) {
       if (error)
         return null;
+
+      // ANT-IDE
+      // user can not editor the element.style
+      inlinePayload.range = null;
 
       var node = this._domModel.nodeForId(nodeId);
       if (!node)

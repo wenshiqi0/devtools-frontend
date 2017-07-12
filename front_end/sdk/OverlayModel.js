@@ -151,7 +151,9 @@ SDK.OverlayModel = class extends SDK.SDKModel {
    * @param {!Protocol.DOM.BackendNodeId=} backendNodeId
    * @param {!Protocol.Runtime.RemoteObjectId=} objectId
    */
+  // ANT-IDE
   highlightDOMNodeWithConfig(nodeId, config, backendNodeId, objectId) {
+    const tinyModel = Ant.targetManager.getCurrentModel();
     if (SDK.OverlayModel._highlightDisabled)
       return;
     config = config || {mode: 'all', showInfo: undefined, selectors: undefined};
@@ -164,7 +166,7 @@ SDK.OverlayModel = class extends SDK.SDKModel {
       highlightConfig.showInfo = config.showInfo;
     if (typeof config.selectors !== 'undefined')
       highlightConfig.selectorList = config.selectors;
-    this._highlighter.highlightDOMNode(this._domModel.nodeForId(nodeId || 0), highlightConfig, backendNodeId, objectId);
+    this._highlighter.highlightDOMNode(tinyModel.nodeForId(nodeId || 0), highlightConfig, backendNodeId, objectId);
   }
 
   /**
@@ -287,12 +289,17 @@ SDK.OverlayModel.DefaultHighlighter = class {
    * @param {!Protocol.DOM.BackendNodeId=} backendNodeId
    * @param {!Protocol.Runtime.RemoteObjectId=} objectId
    */
+   // ANT-IDE
+   // 由于 electron 的 chrome 内核使用的依然是 stable 的 devtools，
+   // 所以这个地方我改写成了老的方式来获取 highlight .
   highlightDOMNode(node, config, backendNodeId, objectId) {
+    const target = Ant.targetManager.getCurrentTarget();
+    const agent = target.domAgent();
     if (objectId || node || backendNodeId) {
-      this._model._overlayAgent.highlightNode(
-          config, (objectId || backendNodeId) ? undefined : node.id, backendNodeId, objectId);
+      agent.highlightNode(
+          config, node.id, backendNodeId, objectId);
     } else {
-      this._model._overlayAgent.hideHighlight();
+      agent.hideHighlight();
     }
   }
 

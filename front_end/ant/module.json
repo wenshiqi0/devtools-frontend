@@ -65,7 +65,9 @@
         "TinyConnection.js",
         "StoragePanel.js",
         "DataPanel.js",
-        "AcssModel.js"
+        "AcssModel.js",
+        "TargetManager.js",
+        "ElementsTreeOutline.js"
     ],
     "resources": [
     ]

@@ -421,16 +421,21 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
    * @return {boolean}
    */
   _startEditingTarget(eventTarget) {
+    // ANT-IDE
+    // disable all tree edit
+    /*
     if (this.treeOutline.selectedDOMNode() !== this._node)
       return false;
 
     if (this._node.nodeType() !== Node.ELEMENT_NODE && this._node.nodeType() !== Node.TEXT_NODE)
       return false;
+    */
 
     var textNode = eventTarget.enclosingNodeOrSelfWithClass('webkit-html-text-node');
     if (textNode)
       return this._startEditingTextNode(textNode);
 
+    /*
     var attribute = eventTarget.enclosingNodeOrSelfWithClass('webkit-html-attribute');
     if (attribute)
       return this._startEditingAttribute(attribute, eventTarget);
@@ -442,7 +447,7 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
     var newAttribute = eventTarget.enclosingNodeOrSelfWithClass('add-attribute');
     if (newAttribute)
       return this._addNewAttribute();
-
+    */
     return false;
   }
 
@@ -492,21 +497,30 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
   populateNodeContextMenu(contextMenu) {
     // Add free-form node-related actions.
     var isEditable = this.hasEditableNode();
-    if (isEditable && !this._editing)
-      contextMenu.appendItem(Common.UIString('Edit as HTML'), this._editAsHTML.bind(this));
-    var isShadowRoot = this._node.isShadowRoot();
+
+    // ANT-IDE
+    // no need for this, disbaled.
+    // if (isEditable && !this._editing)
+      // contextMenu.appendItem(Common.UIString('Edit as HTML'), this._editAsHTML.bind(this));
+    // var isShadowRoot = this._node.isShadowRoot();
 
     // Place it here so that all "Copy"-ing items stick together.
-    var copyMenu = contextMenu.appendSubMenuItem(Common.UIString('Copy'));
-    var createShortcut = UI.KeyboardShortcut.shortcutToString;
-    var modifier = UI.KeyboardShortcut.Modifiers.CtrlOrMeta;
+
+    // ANT-IDE
+    // hosted mode can not use copy
+    // var copyMenu = contextMenu.appendSubMenuItem(Common.UIString('Copy'));
+    // var createShortcut = UI.KeyboardShortcut.shortcutToString;
+    // var modifier = UI.KeyboardShortcut.Modifiers.CtrlOrMeta;
     var treeOutline = this.treeOutline;
     var menuItem;
+
+    /*
     if (!isShadowRoot) {
       menuItem = copyMenu.appendItem(
           Common.UIString('Copy outerHTML'), treeOutline.performCopyOrCut.bind(treeOutline, false, this._node));
       menuItem.setShortcut(createShortcut('V', modifier));
     }
+
     if (this._node.nodeType() === Node.ELEMENT_NODE)
       copyMenu.appendItem(Common.UIString.capitalize('Copy selector'), this._copyCSSPath.bind(this));
     if (!isShadowRoot)
@@ -524,6 +538,7 @@ Elements.ElementsTreeElement = class extends UI.TreeElement {
           !treeOutline.canPaste(this._node));
       menuItem.setShortcut(createShortcut('V', modifier));
     }
+    */
 
     contextMenu.appendSeparator();
     menuItem = contextMenu.appendCheckboxItem(
@@ -1660,7 +1675,11 @@ Elements.ElementsTreeElement.InitialChildrenLimit = 500;
 // or implicitly (for HTML5) forbid the closing tag.
 Elements.ElementsTreeElement.ForbiddenClosingTagElements = new Set([
   'area', 'base',  'basefont', 'br',   'canvas',   'col',  'command', 'embed',  'frame', 'hr',
-  'img',  'input', 'keygen',   'link', 'menuitem', 'meta', 'param',   'source', 'track', 'wbr'
+  'img',  'input', 'keygen',   'link', 'menuitem', 'meta', 'param',   'source', 'track', 'wbr',
+
+// ANT-IDE
+
+  'switch', 'radio', 'checkbox', 'image', 'slider', 'icon', 'progress', 'textarea', 'audio', 'video'
 ]);
 
 // These tags we do not allow editing their tag name.

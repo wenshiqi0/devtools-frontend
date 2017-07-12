@@ -970,9 +970,8 @@ Elements.StylePropertiesSection = class {
    * @param {!SDK.CSSModel.Edit} edit
    */
   _styleSheetEdited(edit) {
-    // ANT-IDE: = =;
     var rule = this._style.parentRule;
-    if (false)
+    if (rule)
       rule.rebase(edit);
     else
       this._style.rebase(edit);
