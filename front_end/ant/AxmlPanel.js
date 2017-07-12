@@ -1,5 +1,5 @@
+let mainTinyModel;
 const win = window;
-let tinyModel;
 
 Ant.makeProxyPromiseOnce = (method, payload, callback) =>
   new Promise((resolve, reject) => {
@@ -26,10 +26,25 @@ Ant.AxmlPanel = class extends Elements.ElementsPanel {
     this.requestTargetWS();
   }
 
-  modelAdded(domModel) {
-    if (tinyModel) this.modelRemoved(tinyModel);
-    tinyModel = domModel;
+  modelRemoved(domModel) {
+    var treeOutline = Elements.ElementsTreeOutline.forDOMModel(domModel);
+    if (!treeOutline) return;
+    treeOutline.unwireFromDOMModel();
+    this._treeOutlines.remove(treeOutline);
+    var header = this._treeOutlineHeaders.get(treeOutline);
+    if (header)
+      header.remove();
+    this._treeOutlineHeaders.delete(treeOutline);
+    treeOutline.element.remove();
+  }
 
+  modelAdded(domModel, path, target) {
+    if (!path) return;
+    if (mainTinyModel)
+      this.modelRemoved(mainTinyModel);
+    SDK.targetManager.unobserveModels(Ant.TinyModel, this);
+    SDK.targetManager._modelRemoved(target, SDK.DOMModel, this);
+    mainTinyModel = domModel;
     var treeOutline = new Ant.ElementsTreeOutline(domModel, true, true);
     treeOutline.setWordWrap(Common.moduleSetting('domWordWrap').get());
     treeOutline.wireToDOMModel();
@@ -44,7 +59,6 @@ Ant.AxmlPanel = class extends Elements.ElementsPanel {
       this._treeOutlineHeaders.set(treeOutline, createElementWithClass('div', 'elements-tree-header'));
       this._targetNameChanged(domModel.target());
     }
-
     // Perform attach if necessary.
     if (this.isShowing())
       this.wasShown();
@@ -55,7 +69,7 @@ Ant.AxmlPanel = class extends Elements.ElementsPanel {
     const { target, model } = Ant.targetManager.addNewTarget(path, ws);
     this._target = target;
     this._tinyModel = model;
-    this.modelAdded(model);
+    this.modelAdded(model, path, target);
     SDK.targetManager.modelAdded(this._target, Ant.TinyModel, model);
     SDK.targetManager.observeModels(Ant.TinyModel, this);
     SDK.targetManager.addModelListener(
