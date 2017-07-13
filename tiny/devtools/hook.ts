@@ -42,30 +42,38 @@ globalHook.on('update', ({ internalInstance, data }) => {
     const oldProps = rootNodeIDMap.get(internalInstance);
     let nodeId = appxForNodeId.get(internalInstance);
 
+    // while nodeId is not found, maybe it is the owner of this instance.
+    // so we get out of this intance to check once more.
+    if (!nodeId)
+      nodeId = appxForNodeId.get(internalInstance._currentElement);
+    // or maybe a child
+    if (!nodeId)
+      nodeId = appxForNodeId.get(internalInstance._renderedComponent);
+    // or maybe a parent
     if (!nodeId) {
-      // while nodeId is not found, maybe it is the owner of this instance.
-      // so we get out of this intance to check once more.
-      const ownerInstance = getInternalInstance(internalInstance._currentElement);
-      nodeId = appxForNodeId.get(ownerInstance);
-    }
+      nodeId = appxForNodeId.get(internalInstance._currentElement._owner);
 
-    if (!nodeId) {
-      // or maybe a child
-      const childInstance = internalInstance._renderedComponent;
-      nodeId = appxForNodeId.get(childInstance);
-    }
-
-    if (nodeId && oldProps) {
-      for (const key of Object.keys(oldProps)) {
-        if (oldProps[key] !== data.props[key]) {
-          sendMessage({
-            method: 'propsModified',
-            payload: {
-              nodeId,
-              props: filterProps(data.props.$tag, data.props),
-            },
-          });
-          break;
+    if (nodeId) {
+      if (!oldProps) {
+        sendMessage({
+          method: 'propsModified',
+          payload: {
+            nodeId,
+            props: filterProps(data.props.$tag, data.props),
+          },
+        });
+      } else {
+        for (const key of Object.keys(oldProps)) {
+          if (oldProps[key] !== data.props[key]) {
+            sendMessage({
+              method: 'propsModified',
+              payload: {
+                nodeId,
+                props: filterProps(data.props.$tag, data.props),
+              },
+            });
+            break;
+          }
         }
       }
     }
@@ -115,7 +123,7 @@ function setupBackend(hook) {
       decorateMany(renderer.Reconciler, {
         mountComponent(internalInstance, rootID, transaction, context) {
           var data = getData(internalInstance);
-          rootNodeIDMap.set(internalInstance._rootNodeID, internalInstance);
+          rootNodeIDMap.set(internalInstance, data.props);
           hook.emit('mount', { internalInstance, data, renderer: rid });
         },
         performUpdateIfNecessary(internalInstance, nextChild, transaction, context) {
@@ -201,8 +209,8 @@ function getTinyData(element) {
 function filterProps(name, props, noText) {
   const filteredProps = {};
   const allProps = componentsMap[name];
-  Object.keys(allProps.attributions || []).forEach((index) => {
-    const prop = allProps.attributions[index]
+  Object.keys((allProps && allProps.attributions) || []).forEach((index) => {
+    const prop = allProps.attributions[index];
     const propKey = (prop.label || '').replace(/\-([a-z])/g, (all, letter) => {
       return letter.toUpperCase();
     })
@@ -287,6 +295,7 @@ function mappingDomToNodeIdChildren(parent, children, getReactElementFromNative,
     children.forEach((next, index) => {
       reactComponents.push('');
       nodeIdForDom.set(next.nodeId, parent.children[index]);
+      if (nodeType === 'swiper') return reactComponents;
       try {
         const reactComponent = handleTinyElemets(parent.children[index], getReactElementFromNative);
         appxForNodeId.set(getInternalInstance(reactComponent), next.nodeId);
@@ -347,7 +356,6 @@ const messageHandler = {
         nodeIdForDom.set(parentId, rootDom.children[0].children[0]);
         reactComponents = mappingDomToNodeIdChildren(rootDom.children[0].children[0], payloads, getReactElementFromNative);
       } else {
-        console.log(nodeType);
         reactComponents = mappingDomToNodeIdChildren(realDom, payloads, getReactElementFromNative, nodeType);
       }
     }

@@ -143,8 +143,7 @@ Ant.TinyModel = class extends SDK.DOMModel {
 
   propsModified(nodeId, props) {
     const node = this._idToDOMNode[nodeId];
-
-    if (!node)
+    if (!node || node._localName === 'swiper-item')
       return;
 
     Ant.combinedProps(node, props, this);

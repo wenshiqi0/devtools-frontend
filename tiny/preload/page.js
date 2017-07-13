@@ -1285,53 +1285,61 @@ globalHook.on('update', function (_ref3) {
         if (data.props.$tag === 'image' && !data.props.src) return;
         var oldProps = rootNodeIDMap.get(internalInstance);
         var nodeId = appxForNodeId.get(internalInstance);
+        // while nodeId is not found, maybe it is the owner of this instance.
+        // so we get out of this intance to check once more.
+        if (!nodeId) nodeId = appxForNodeId.get(internalInstance._currentElement);
+        // or maybe a child
+        if (!nodeId) nodeId = appxForNodeId.get(internalInstance._renderedComponent);
+        // or maybe a parent
         if (!nodeId) {
-            // while nodeId is not found, maybe it is the owner of this instance.
-            // so we get out of this intance to check once more.
-            var ownerInstance = getInternalInstance(internalInstance._currentElement);
-            nodeId = appxForNodeId.get(ownerInstance);
-        }
-        if (!nodeId) {
-            // or maybe a child
-            var childInstance = internalInstance._renderedComponent;
-            nodeId = appxForNodeId.get(childInstance);
-        }
-        if (nodeId && oldProps) {
-            var _iteratorNormalCompletion = true;
-            var _didIteratorError = false;
-            var _iteratorError = undefined;
+            nodeId = appxForNodeId.get(internalInstance._currentElement._owner);
+            if (nodeId) {
+                if (!oldProps) {
+                    sendMessage({
+                        method: 'propsModified',
+                        payload: {
+                            nodeId: nodeId,
+                            props: filterProps(data.props.$tag, data.props)
+                        }
+                    });
+                } else {
+                    var _iteratorNormalCompletion = true;
+                    var _didIteratorError = false;
+                    var _iteratorError = undefined;
 
-            try {
-                for (var _iterator = (0, _getIterator3.default)((0, _keys2.default)(oldProps)), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-                    var key = _step.value;
+                    try {
+                        for (var _iterator = (0, _getIterator3.default)((0, _keys2.default)(oldProps)), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+                            var key = _step.value;
 
-                    if (oldProps[key] !== data.props[key]) {
-                        sendMessage({
-                            method: 'propsModified',
-                            payload: {
-                                nodeId: nodeId,
-                                props: filterProps(data.props.$tag, data.props)
+                            if (oldProps[key] !== data.props[key]) {
+                                sendMessage({
+                                    method: 'propsModified',
+                                    payload: {
+                                        nodeId: nodeId,
+                                        props: filterProps(data.props.$tag, data.props)
+                                    }
+                                });
+                                break;
                             }
-                        });
-                        break;
-                    }
-                }
-            } catch (err) {
-                _didIteratorError = true;
-                _iteratorError = err;
-            } finally {
-                try {
-                    if (!_iteratorNormalCompletion && _iterator.return) {
-                        _iterator.return();
-                    }
-                } finally {
-                    if (_didIteratorError) {
-                        throw _iteratorError;
+                        }
+                    } catch (err) {
+                        _didIteratorError = true;
+                        _iteratorError = err;
+                    } finally {
+                        try {
+                            if (!_iteratorNormalCompletion && _iterator.return) {
+                                _iterator.return();
+                            }
+                        } finally {
+                            if (_didIteratorError) {
+                                throw _iteratorError;
+                            }
+                        }
                     }
                 }
             }
+            rootNodeIDMap.set(internalInstance, data.props);
         }
-        rootNodeIDMap.set(internalInstance, data.props);
     }
 });
 function decorateResult(obj, attr, fn) {
@@ -1373,7 +1381,7 @@ function setupBackend(hook) {
             decorateMany(renderer.Reconciler, {
                 mountComponent: function mountComponent(internalInstance, rootID, transaction, context) {
                     var data = getData(internalInstance);
-                    rootNodeIDMap.set(internalInstance._rootNodeID, internalInstance);
+                    rootNodeIDMap.set(internalInstance, data.props);
                     hook.emit('mount', { internalInstance: internalInstance, data: data, renderer: rid });
                 },
                 performUpdateIfNecessary: function performUpdateIfNecessary(internalInstance, nextChild, transaction, context) {
@@ -1448,7 +1456,7 @@ function getTinyData(element) {
 function filterProps(name, props, noText) {
     var filteredProps = {};
     var allProps = _componentsMap2.default[name];
-    (0, _keys2.default)(allProps.attributions || []).forEach(function (index) {
+    (0, _keys2.default)(allProps && allProps.attributions || []).forEach(function (index) {
         var prop = allProps.attributions[index];
         var propKey = (prop.label || '').replace(/\-([a-z])/g, function (all, letter) {
             return letter.toUpperCase();
@@ -1522,6 +1530,7 @@ function mappingDomToNodeIdChildren(parent, children, getReactElementFromNative,
         children.forEach(function (next, index) {
             reactComponents.push('');
             nodeIdForDom.set(next.nodeId, parent.children[index]);
+            if (nodeType === 'swiper') return reactComponents;
             try {
                 var reactComponent = handleTinyElemets(parent.children[index], getReactElementFromNative);
                 appxForNodeId.set(getInternalInstance(reactComponent), next.nodeId);
@@ -1594,7 +1603,6 @@ var messageHandler = {
                 nodeIdForDom.set(parentId, rootDom.children[0].children[0]);
                 reactComponents = mappingDomToNodeIdChildren(rootDom.children[0].children[0], payloads, getReactElementFromNative);
             } else {
-                console.log(nodeType);
                 reactComponents = mappingDomToNodeIdChildren(realDom, payloads, getReactElementFromNative, nodeType);
             }
         }
