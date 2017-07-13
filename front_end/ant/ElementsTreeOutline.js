@@ -16,11 +16,56 @@ Ant.ElementsTreeOutline = class extends Elements.ElementsTreeOutline {
     async function callback({ data }) {
       let j = 0;
       const agent = Ant.targetManager.getCurrentTarget().domAgent();
+
+      if (node._localName === 'swiper' || node._localName === 'picker-view-column')
+        return this._updateChildren(parentTreeElement);
+
+      if (node._localName === 'picker-view') {
+        await agent.requestChildNodes(node.id, 3);
+        for (const i in node._children) {
+          node._children[i]._attributes = [];
+          node._children[i]._attributesMap = {};
+          node._children[i]._localName = 'picker-view-column';
+          node._children[i]._nodeName = 'picker-view-column'.toUpperCase();
+          node._children[i]._children = node._children[i]._children[2]._children;
+          node._children[i]._children.forEach(child => {
+            child._attributes = [];
+            child._attributesMap = {};
+            child._localName = 'picker-view-item';
+            child._nodeName = 'picker-view-item'.toUpperCase();
+          });
+        }
+        return this._updateChildren(parentTreeElement);
+      }
+
       for (const i in node._children) {
         let child = node._children[i];
         if (!child) continue;
         if (data && data[j] && !child._nodeValue) {
           child = Ant.combineNativeAndReactDom(child, data[j++]);
+
+          // swiper view is much more special,
+          // some no meaning wrapper we need to remove it from tree.
+          // and add swiper-item to the div with no atttributions.
+          if (child._localName === 'swiper') {
+            await agent.requestChildNodes(child.id, 4);
+            child._children.forEach(child => {
+              child._attributes = [];
+              child._attributesMap = {};
+              child._localName = 'swiper-item';
+              child._nodeName = 'swiper-item'.toUpperCase();
+            });
+          }
+
+          if (child._localName === 'picker-view') {
+            await agent.requestChildNodes(child.id, 2);
+            child._children.forEach(child => {
+              child._attributes = [];
+              child._attributesMap = {};
+              child._localName = 'picker-view-column';
+              child._nodeName = 'picker-view-column'.toUpperCase();
+            });
+          }
 
           // `text` and `button` has span text inside.
           // and we want to display it as inline text.
@@ -58,7 +103,7 @@ Ant.ElementsTreeOutline = class extends Elements.ElementsTreeOutline {
       if (parentTreeElement.populated) {
         node.getChildNodes(children => {
           if (!children) return;
-          Ant.makeProxyPromiseOnce('setChildNodeIdOnce', { parentId: node.id, payloads: getData(children) }, callback.bind(self));
+          Ant.makeProxyPromiseOnce('setChildNodeIdOnce', { parentId: node.id, nodeType: node._localName, payloads: getData(children) }, callback.bind(self));
         });
       }
     }

@@ -274,9 +274,15 @@ function getInternalInstance(element) {
   return element._owner._instance._reactInternalInstance;
 }
 
-function mappingDomToNodeIdChildren(parent, children, getReactElementFromNative) {
+function mappingDomToNodeIdChildren(parent, children, getReactElementFromNative, nodeType) {
   if (!parent) return;
   const reactComponents = [];
+  if (nodeType === 'swiper') {
+    parent = parent.children[0].children[0];
+  }
+  if (nodeType === 'picker-view-column') {
+    parent = parent.children[2];
+  }
   if (children && children.length > 0) {
     children.forEach((next, index) => {
       reactComponents.push('');
@@ -331,7 +337,7 @@ const messageHandler = {
       },
     })
   },
-  setChildNodeIdOnce: ({ parentId, payloads }) => {
+  setChildNodeIdOnce: ({ parentId, payloads, nodeType }) => {
     let reactComponents = null;
     const realDom = nodeIdForDom.get(parentId);
     const rootDom = document.getElementById('__react-content');
@@ -341,7 +347,8 @@ const messageHandler = {
         nodeIdForDom.set(parentId, rootDom.children[0].children[0]);
         reactComponents = mappingDomToNodeIdChildren(rootDom.children[0].children[0], payloads, getReactElementFromNative);
       } else {
-        reactComponents = mappingDomToNodeIdChildren(realDom, payloads, getReactElementFromNative);
+        console.log(nodeType);
+        reactComponents = mappingDomToNodeIdChildren(realDom, payloads, getReactElementFromNative, nodeType);
       }
     }
     sendMessage({
