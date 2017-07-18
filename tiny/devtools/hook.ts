@@ -14,7 +14,7 @@ const disposes = [];
 window.ipc = ipc;
 
 let container;
-const rootNodeIDMap = new Map()
+const rootNodeIDMap = new Map();
 
 let updateQueue = [];
 
@@ -322,13 +322,39 @@ function detectGetReactElementFromNative(dom) {
   }
 }
 
+let count = 0;
+const maxTryOut = 5;
+
+function checkReactReady(callback) {
+  if (count === maxTryOut) return;
+  count++;
+  try {
+    const rootDom = document.getElementById('__react-content');
+    const { getReactElementFromNative } = detectGetReactElementFromNative(rootDom.children[0].children[0]);
+    if (getReactElementFromNative) {
+      count = 0;
+      callback();
+    } else {
+      setTimeout(function() {
+        checkReactReady(callback);
+      }, 300);
+    }
+  } catch (e) {
+    setTimeout(function() {
+      checkReactReady(callback);
+    }, 300);
+  }
+}
+
 const messageHandler = {
   initOnce: () => {
-    fetchRemoteUrl((payload) => {
-      sendMessage({
-        method: 'initOnce',
-        payload,
-      });
+    checkReactReady(() => {
+      fetchRemoteUrl((payload) => {
+        sendMessage({
+          method: 'initOnce',
+          payload,
+        });
+      })
     })
   },
   refresh: () => {

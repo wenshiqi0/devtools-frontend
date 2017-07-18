@@ -44,9 +44,9 @@ Ant.TinyModel = class extends SDK.DOMModel {
       this._setDetachedRoot(payloads[0]);
       return;
     }
-
     var parent = this._idToDOMNode[parentId];
-    parent._setChildrenPayload(payloads);
+    if (parent)
+      parent._setChildrenPayload(payloads);
   }
 
   _childNodeInserted(parentId, prevId, payload) {

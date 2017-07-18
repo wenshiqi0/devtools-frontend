@@ -1557,12 +1557,39 @@ function detectGetReactElementFromNative(dom) {
         }
     }
 }
+var count = 0;
+var maxTryOut = 5;
+function checkReactReady(callback) {
+    if (count === maxTryOut) return;
+    count++;
+    try {
+        var rootDom = document.getElementById('__react-content');
+
+        var _detectGetReactElemen = detectGetReactElementFromNative(rootDom.children[0].children[0]),
+            getReactElementFromNative = _detectGetReactElemen.getReactElementFromNative;
+
+        if (getReactElementFromNative) {
+            count = 0;
+            callback();
+        } else {
+            setTimeout(function () {
+                checkReactReady(callback);
+            }, 300);
+        }
+    } catch (e) {
+        setTimeout(function () {
+            checkReactReady(callback);
+        }, 300);
+    }
+}
 var messageHandler = {
     initOnce: function initOnce() {
-        fetchRemoteUrl(function (payload) {
-            sendMessage({
-                method: 'initOnce',
-                payload: payload
+        checkReactReady(function () {
+            fetchRemoteUrl(function (payload) {
+                sendMessage({
+                    method: 'initOnce',
+                    payload: payload
+                });
             });
         });
     },
@@ -1574,8 +1601,8 @@ var messageHandler = {
 
         var rootDom = document.getElementById('__react-content');
 
-        var _detectGetReactElemen = detectGetReactElementFromNative(rootDom.children[0].children[0]),
-            rootReactDom = _detectGetReactElemen.rootReactDom;
+        var _detectGetReactElemen2 = detectGetReactElementFromNative(rootDom.children[0].children[0]),
+            rootReactDom = _detectGetReactElemen2.rootReactDom;
 
         nodeIdForDom.set(root.nodeId, rootDom.children[0].children[0]);
         updateQueue = [];
@@ -1595,8 +1622,8 @@ var messageHandler = {
         var realDom = nodeIdForDom.get(parentId);
         var rootDom = document.getElementById('__react-content');
 
-        var _detectGetReactElemen2 = detectGetReactElementFromNative(realDom || rootDom.children[0].children[0]),
-            getReactElementFromNative = _detectGetReactElemen2.getReactElementFromNative;
+        var _detectGetReactElemen3 = detectGetReactElementFromNative(realDom || rootDom.children[0].children[0]),
+            getReactElementFromNative = _detectGetReactElemen3.getReactElementFromNative;
 
         if (getReactElementFromNative) {
             if (nodeIdForDom.size === 0 || !realDom) {
