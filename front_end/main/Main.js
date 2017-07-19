@@ -456,7 +456,13 @@ Main.Main.InspectorModel = class extends SDK.SDKModel {
   constructor(target) {
     super(target);
     target.registerInspectorDispatcher(this);
-    target.inspectorAgent().enable();
+
+    // ANT-IDE: Ant.targetManager
+    target.inspectorAgent().enable().then(() => {
+      Ant.makeProxyPromiseOnce('initOnce', {}, ({ path, ws }) => {
+        Ant.targetManager.addNewTarget(path, ws);
+      });
+    });
   }
 
   /**

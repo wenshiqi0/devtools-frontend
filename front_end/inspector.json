@@ -17,6 +17,7 @@
         { "name": "services", "type": "autostart" },
         { "name": "elements", "condition": "!v8only" },
         { "name": "ant", "condition": "!v8only" },
+        { "name": "ant_target", "condition": "!v8only", "type": "autostart" },
         { "name": "network", "condition": "!v8only" },
         { "name": "sources" },
         { "name": "timeline", "condition": "!v8only" },

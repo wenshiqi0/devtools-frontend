@@ -1,21 +1,6 @@
 let mainTinyModel;
 const win = window;
 
-Ant.makeProxyPromiseOnce = (method, payload, callback) =>
-  new Promise((resolve, reject) => {
-    window.sendToHost('render', {
-      method,
-      payload,
-    });
-    window.listenToHostOnce(`render-${method}`, (event, args) => {
-      const { payload } = args;
-      if (callback && (typeof callback) === 'function')
-        resolve(callback(payload));
-      else
-        resolve(payload);
-    });
-  });
-
 Ant.AxmlPanel = class extends Elements.ElementsPanel {
   constructor() {
     super('axml');
@@ -65,8 +50,7 @@ Ant.AxmlPanel = class extends Elements.ElementsPanel {
   }
 
   async requestTargetWS() {
-    const { ws, path } = await Ant.makeProxyPromiseOnce('initOnce');
-    const { target, model } = Ant.targetManager.addNewTarget(path, ws);
+    const { path, target, model } = Ant.targetManager.getCurrent();
     this._target = target;
     this._tinyModel = model;
     this.modelAdded(model, path, target);

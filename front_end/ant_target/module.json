@@ -1,0 +1,17 @@
+{
+    "extensions": [
+    ],
+    "dependencies": [
+        "common",
+        "host",
+        "platform",
+        "protocol"
+    ],
+    "scripts": [
+        "TargetManager.js",
+        "TinyModel.js",
+        "TinyConnection.js"
+    ],
+    "resources": [
+    ]
+}

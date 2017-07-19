@@ -61,12 +61,9 @@
     ],
     "scripts": [
         "AxmlPanel.js",
-        "TinyModel.js",
-        "TinyConnection.js",
         "StoragePanel.js",
         "DataPanel.js",
         "AcssModel.js",
-        "TargetManager.js",
         "ElementsTreeOutline.js"
     ],
     "resources": [

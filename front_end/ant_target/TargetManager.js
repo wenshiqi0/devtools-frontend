@@ -1,7 +1,25 @@
+Ant = {};
+
+Ant.makeProxyPromiseOnce = (method, payload, callback) =>
+  new Promise((resolve, reject) => {
+    window.sendToHost('render', {
+      method,
+      payload,
+    });
+    window.listenToHostOnce(`render-${method}`, (event, args) => {
+      const { payload } = args;
+      if (callback && (typeof callback) === 'function')
+        resolve(callback(payload));
+      else
+        resolve(payload);
+    });
+  });
+
 Ant.TargetManager = class extends Common.Object {
   constructor() {
     super();
     this._targets = new Map();
+    this._currentPath = null;
     this._currentTarget = null;
     this._currentModel = null;
   }
@@ -48,6 +66,7 @@ Ant.TargetManager = class extends Common.Object {
 
   setCurrent(path) {
     const { target, model } = this._targets.get(path);
+    this._currentPath = path;
     this._currentTarget = target;
     this._currentModel = model;
   }
@@ -60,7 +79,21 @@ Ant.TargetManager = class extends Common.Object {
     return this._currentModel;
   }
 
-  switchTarget() {
+  getCurrentPath() {
+    return this._currentPath;
+  }
+
+  getCurrent() {
+    return {
+      path: this._currentPath,
+      model: this._currentModel,
+      target: this._currentTarget,
+    };
+  }
+
+  async switchTarget() {
+    const { ws, path } = await Ant.makeProxyPromiseOnce('initOnce');
+    Ant.targetManager.addNewTarget(path, ws);
     this.dispatchEventToListeners(Ant.TargetManager.Events.switchTarget);
   }
 

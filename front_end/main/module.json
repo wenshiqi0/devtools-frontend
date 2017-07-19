@@ -436,7 +436,8 @@
         "persistence",
         "help",
         "console_model",
-        "network_log"
+        "network_log",
+        "ant_target"
     ],
     "scripts": [
         "RenderingOptions.js",
