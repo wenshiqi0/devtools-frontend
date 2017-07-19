@@ -50,7 +50,12 @@ Ant.AxmlPanel = class extends Elements.ElementsPanel {
   }
 
   async requestTargetWS() {
-    const { path, target, model } = Ant.targetManager.getCurrent();
+    const current = Ant.targetManager.getCurrent();
+    if (!current.model || !current.target || !current.path) {
+      // console.log('so sad for this, try wait!');
+      return;
+    }
+    const { path, model, target, } = current;
     this._target = target;
     this._tinyModel = model;
     this.modelAdded(model, path, target);

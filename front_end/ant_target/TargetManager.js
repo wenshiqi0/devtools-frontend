@@ -2,16 +2,30 @@ Ant = {};
 
 Ant.makeProxyPromiseOnce = (method, payload, callback) =>
   new Promise((resolve, reject) => {
-    window.sendToHost('render', {
-      method,
-      payload,
-    });
     window.listenToHostOnce(`render-${method}`, (event, args) => {
       const { payload } = args;
       if (callback && (typeof callback) === 'function')
         resolve(callback(payload));
       else
         resolve(payload);
+    });
+    window.sendToHost('render', {
+      method,
+      payload,
+    });
+  });
+
+Ant.makePromiseHostOnce = (method, payload, callback) =>
+  new Promise((resolve, reject) => {
+    window.listenToHostOnce('main', (event, args) => {
+      if (callback && (typeof callback) === 'function')
+        resolve(callback(args));
+      else
+        resolve(args);
+    });
+    window.sendToHost('main', {
+      method,
+      payload,
     });
   });
 
@@ -32,7 +46,7 @@ Ant.TargetManager = class extends Common.Object {
     }
   }
 
-  addNewTarget(path, ws) {
+  async addNewTarget(path, ws) {
     if (this._targets.has(path)) {
       const old = this._targets.get(path);
       this.setCurrent(path);
@@ -46,7 +60,7 @@ Ant.TargetManager = class extends Common.Object {
       SDK.Target.Capability.DOM | SDK.Target.Capability.Target | SDK.Target.Capability.Browser | SDK.Target.Capability.DeviceEmulation,
       createMainConnection.bind(this, ws), null);
 
-    this.enableEmulation(target);
+    await this.enableEmulation(target);
 
     const tinyModel = new Ant.TinyModel(target);
 
@@ -56,12 +70,16 @@ Ant.TargetManager = class extends Common.Object {
     return { target, model: tinyModel };
   }
 
-  enableEmulation(target) {
+  async enableEmulation(target) {
+    const { width, height } = await Ant.makePromiseHostOnce('getWebviewWidthHeight');
     const pageAgent = target.pageAgent();
+    await pageAgent.enable();
     const emulationAgent = target.emulationAgent();
-    pageAgent.enable().then(() => {
-      emulationAgent.setTouchEmulationEnabled(true, 'mobile');
-    });
+    emulationAgent.setTouchEmulationEnabled(true, 'mobile');
+
+    // so sad, we have to try again to override.
+    await emulationAgent.setDeviceMetricsOverride(width, height + 1, 0, true, false);
+    emulationAgent.setDeviceMetricsOverride(width, height, 0, true, false);
   }
 
   setCurrent(path) {
@@ -93,7 +111,7 @@ Ant.TargetManager = class extends Common.Object {
 
   async switchTarget() {
     const { ws, path } = await Ant.makeProxyPromiseOnce('initOnce');
-    Ant.targetManager.addNewTarget(path, ws);
+    await Ant.targetManager.addNewTarget(path, ws);
     this.dispatchEventToListeners(Ant.TargetManager.Events.switchTarget);
   }
 
