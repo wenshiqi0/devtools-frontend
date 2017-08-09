@@ -254,7 +254,7 @@ const sendMessage = ({ method, payload }) => {
 }
 
 function fetchRemoteUrl(callback) {
-  const port = 9224;
+  const port = window.__chromePort__;
   const request = new Request(`http://127.0.0.1:${port}/json/list`);
   const path = window.$page.getPagePath();
   fetch(request)
@@ -331,7 +331,8 @@ function checkReactReady(callback) {
   try {
     const rootDom = document.getElementById('__react-content');
     const { getReactElementFromNative } = detectGetReactElementFromNative(rootDom.children[0].children[0]);
-    if (getReactElementFromNative) {
+    console.error(window.__chromePort__);
+    if (getReactElementFromNative && window.__chromePort__) {
       count = 0;
       callback();
     } else {
